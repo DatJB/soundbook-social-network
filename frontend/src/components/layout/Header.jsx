@@ -147,9 +147,7 @@ const Header = ({ unreadMessages = 0 }) => {
                   className="flex items-center gap-2 outline-none rounded-md focus-visible:ring-2 focus-visible:ring-primary-500"
                   aria-label={t('app.name')}
               >
-                <div className="w-8 h-8 rounded-full bg-primary-500 flex items-center justify-center text-white font-bold dark:animate-pulse">
-                  SB
-                </div>
+                <img src="/sb.png" alt="Soundbook Logo" className="w-9 h-9 object-contain dark:animate-pulse" />
                 <span className="text-xl font-bold tracking-tight bg-gradient-to-r from-primary-500 to-purple-500 bg-clip-text text-transparent hidden sm:block">
                 {t('app.name')}
               </span>
