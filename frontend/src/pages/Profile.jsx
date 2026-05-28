@@ -701,7 +701,7 @@ const Profile = () => {
         </div>
 
         <div className="flex flex-col lg:flex-row gap-8 relative items-start">
-          <div className="w-full lg:w-[30%] space-y-6 lg:sticky lg:top-24 pb-4">
+          <div className="w-full lg:w-[30%] space-y-6 lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto scrollbar-hide pb-4 lg:pr-2">
             <PersonalInfo t={t} isGuest={isGuest} profileData={profileData} isEditingInfo={isEditingInfo} setIsEditingInfo={setIsEditingInfo} formData={formData} handleInputChange={handleInputChange} handleTogglePreview={handleTogglePreview} handleSaveInfo={handleSaveInfo} lastUpdate={lastUpdate} onOpenPinnedTrackSearch={() => setPinnedModal({ open: true, query: '', loading: false, results: [], error: '' })} />
             <AccountInfo t={t} isGuest={isGuest} isEditingAccount={isEditingAccount} setIsEditingAccount={setIsEditingAccount} accountData={accountData} handleAccountInputChange={handleAccountInputChange} handleSaveAccountInfo={handleSaveAccountInfo} isChangingPassword={isChangingPassword} setIsChangingPassword={setIsChangingPassword} passwordData={passwordData} handlePasswordInputChange={handlePasswordInputChange} handleSavePassword={handleSavePassword} lastUpdate={lastUpdate} />
             <FriendsList t={t} friends={friends} />
@@ -711,7 +711,7 @@ const Profile = () => {
             )}
           </div>
 
-          <div className="flex-1 w-full lg:w-[70%] space-y-16">
+          <div className="flex-1 w-full lg:w-[70%] space-y-16 lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto scrollbar-hide pb-4 lg:pr-2">
             <ProfileShelves
               t={t}
               shelves={shelves}

@@ -30,7 +30,10 @@ const RoomHeader = ({ membersCount, roomName, roomId, visible = true }) => {
         await leaveRoom(roomId, user.id);
       }
     } catch (e) {
-      console.error('Error leaving room:', e);
+      // Ignore "Room member not found" (404) errors as it just means they were already kicked/left
+      if (e?.response?.status !== 404 && e?.message !== 'Room member not found') {
+        console.error('Error leaving room:', e);
+      }
     } finally {
       // Now fully close local session and disconnect
       closeSession();

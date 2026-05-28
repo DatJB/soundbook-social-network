@@ -21,4 +21,5 @@ public class RoomDetailResponse {
     private Long listenersCount;
     private RoomPlaybackStateResponse state;
     private List<RoomMemberResponse> members;
+    private List<RoomMemberResponse> pendingMembers;
 }

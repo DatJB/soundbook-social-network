@@ -19,7 +19,6 @@ public interface DmMessageRepository extends JpaRepository<DmMessage, Long> {
 						select m
 						from DmMessage m
 						where m.thread.id = :threadId
-							and m.deletedForEveryone = false
 							and (
 								(m.sender.id = :userId and m.deletedForSender = false)
 								or (m.sender.id <> :userId and m.deletedForReceiver = false)

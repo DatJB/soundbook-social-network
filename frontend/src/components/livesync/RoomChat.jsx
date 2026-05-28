@@ -1,11 +1,19 @@
-import React, { useEffect, useRef } from 'react';
-import { Heart } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Heart, Smile } from 'lucide-react';
+import EmojiPicker from 'emoji-picker-react';
 import { useLanguage } from '../../context/LanguageContext';
+import { useTheme } from '../../context/ThemeContext';
 import { resolveUrl } from '../../services/auth';
 
 const RoomChat = ({ chatMessages, chatInput, setChatInput, onSendMessage, isSending = false }) => {
   const { t } = useLanguage();
+  const { theme } = useTheme();
   const messagesContainerRef = useRef(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+
+  const onEmojiClick = (emojiObject) => {
+    setChatInput((prev) => prev + emojiObject.emoji);
+  };
 
   useEffect(() => {
     if (messagesContainerRef.current) {
@@ -59,15 +67,39 @@ const RoomChat = ({ chatMessages, chatInput, setChatInput, onSendMessage, isSend
               }
             }}
             placeholder={t('room.chat_placeholder')}
-            className="w-full bg-gray-100 dark:bg-gray-800 border-none outline-none rounded-full py-2.5 pl-4 pr-12 text-sm text-text-color placeholder-gray-500"
+            className="w-full bg-gray-100 dark:bg-gray-800 border-none outline-none rounded-full py-2.5 pl-4 pr-24 text-sm text-text-color placeholder-gray-500"
           />
-          <button
-            disabled={isSending}
-            onClick={onSendMessage}
-            className="absolute right-1 top-1 bottom-1 w-8 h-8 rounded-full bg-primary-500 text-white flex items-center justify-center hover:bg-primary-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Heart size={14} fill="currentColor" />
-          </button>
+          <div className="absolute right-1 top-1 bottom-1 flex items-center gap-1">
+            <button
+              onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+              className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${showEmojiPicker ? 'text-primary-500 bg-primary-500/10' : 'text-gray-500 hover:text-primary-500 hover:bg-gray-200 dark:hover:bg-gray-700'}`}
+            >
+              <Smile size={18} />
+            </button>
+            <button
+              disabled={isSending}
+              onClick={onSendMessage}
+              className="w-8 h-8 rounded-full bg-primary-500 text-white flex items-center justify-center hover:bg-primary-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Heart size={14} fill="currentColor" />
+            </button>
+          </div>
+
+          {showEmojiPicker && (
+            <>
+              <div className="fixed inset-0 z-[60]" onClick={() => setShowEmojiPicker(false)} />
+              <div className="absolute bottom-full right-0 mb-2 z-[70] shadow-2xl rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-700 animate-in slide-in-from-bottom-2">
+                <EmojiPicker 
+                  onEmojiClick={onEmojiClick}
+                  theme={theme === 'dark' ? 'dark' : 'light'}
+                  lazyLoadEmojis={true}
+                  searchDisabled={true}
+                  skinTonesDisabled={true}
+                  height={350}
+                />
+              </div>
+            </>
+          )}
         </div>
       </div>
     </>

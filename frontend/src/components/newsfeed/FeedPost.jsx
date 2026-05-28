@@ -1,5 +1,7 @@
 import { Lock, MoreHorizontal, Pencil, Sparkles, Trash2, MessageSquareOff, Send, Flag, Smile, Image, Music, Book, Search, Loader2, X, Play } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import EmojiPicker from 'emoji-picker-react';
+import { useTheme } from '../../context/ThemeContext';
 import PostHeaderBar from './PostHeaderBar';
 import PostMediaCard from './PostMediaCard';
 import PostReactionsBar from './PostReactionsBar';
@@ -25,6 +27,7 @@ const toApiType = (type) => {
 
 const FeedPost = ({ post, isPlaying, onTogglePlay, onChanged, onDeleted, onShared }) => {
   const { t } = useLanguage();
+  const { theme } = useTheme();
   const [livePost, setLivePost] = useState(post);
   const comments = livePost.comments || [];
   const [menuOpen, setMenuOpen] = useState(false);
@@ -431,34 +434,18 @@ const FeedPost = ({ post, isPlaying, onTogglePlay, onChanged, onDeleted, onShare
               {showEmojiPickerShare && (
                 <>
                   <div className="fixed inset-0 z-[110]" onClick={() => setShowEmojiPickerShare(false)} />
-                  <div className="absolute bottom-full left-0 mb-2 p-3 bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-800 w-64 z-[120] animate-in fade-in zoom-in-95 duration-200">
-                    <div className="max-h-60 overflow-y-auto overflow-x-hidden custom-scrollbar grid grid-cols-6 gap-1 p-1 text-left">
-                      {[
-                        '😀', '😂', '🤣', '😍', '🥰', '😘', '😋', '😛', '😜', '🤪', '🤨', '🧐',
-                        '🤓', '😎', '🤩', '🥳', '😏', '😒', '😞', '😔', '😟', '😕', '🙁', '☹️',
-                        '😣', '😖', '😫', '😩', '🥺', '😢', '😭', '😤', '😠', '😡', '🤬', '🤯',
-                        '😳', '🥵', '🥶', '😱', '😨', '😰', '😥', '😓', '🤗', '🤔', '🤭', '🤫',
-                        '🤥', '😶', '😐', '😑', '😬', '🙄', '😯', '😦', '😧', '😮', '😲', '🥱',
-                        '😴', '🤤', '😪', '😵', '🤐', '🥴', '🤢', '🤮', '🤧', '😷', '🤒', '🤕',
-                        '👍', '👎', '👌', '🤏', '✌️', '🤞', '🤟', '🤘', '🤙', '👈', '👉', '👆',
-                        '👇', '✋', '🤚', '🖐️', '🖖', '👋', '💪', '🙏', '🤲', '👐', '🙌', '👏',
-                        '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '💔', '❣️', '💕', '💞', '💓',
-                        '💗', '💖', '💘', '💝', '💟', '🔥', '✨', '🌟', '⭐', '🌈', '☁️', '❄️'
-                      ].map(emoji => (
-                        <button
-                          key={emoji}
-                          type="button"
-                          onClick={() => {
-                            setShareForm(prev => ({ ...prev, caption: prev.caption + emoji }));
-                            setShowEmojiPickerShare(false);
-                          }}
-                          className="w-9 h-9 flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors text-lg"
-                        >
-                          {emoji}
-                        </button>
-                      ))}
-                    </div>
-                    <div className="absolute bottom-[-6px] left-3 w-3 h-3 bg-white dark:bg-gray-900 border-r border-b border-gray-100 dark:border-gray-800 rotate-45" />
+                  <div className="absolute bottom-full left-0 mb-2 z-[120] shadow-2xl rounded-2xl overflow-hidden border border-gray-100 dark:border-gray-800 animate-in fade-in zoom-in-95 duration-200">
+                    <EmojiPicker 
+                      onEmojiClick={(emojiObject) => {
+                        setShareForm(prev => ({ ...prev, caption: prev.caption + emojiObject.emoji }));
+                        setShowEmojiPickerShare(false);
+                      }}
+                      theme={theme === 'dark' ? 'dark' : 'light'}
+                      lazyLoadEmojis={true}
+                      searchDisabled={true}
+                      skinTonesDisabled={true}
+                      height={350}
+                    />
                   </div>
                 </>
               )}
@@ -542,34 +529,18 @@ const FeedPost = ({ post, isPlaying, onTogglePlay, onChanged, onDeleted, onShare
               {showEmojiPickerEdit && (
                 <>
                   <div className="fixed inset-0 z-[110]" onClick={() => setShowEmojiPickerEdit(false)} />
-                  <div className="absolute bottom-full left-0 mb-2 p-3 bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-800 w-64 z-[120] animate-in fade-in zoom-in-95 duration-200">
-                    <div className="max-h-60 overflow-y-auto overflow-x-hidden custom-scrollbar grid grid-cols-6 gap-1 p-1 text-left">
-                      {[
-                        '😀', '😂', '🤣', '😍', '🥰', '😘', '😋', '😛', '😜', '🤪', '🤨', '🧐',
-                        '🤓', '😎', '🤩', '🥳', '😏', '😒', '😞', '😔', '😟', '😕', '🙁', '☹️',
-                        '😣', '😖', '😫', '😩', '🥺', '😢', '😭', '😤', '😠', '😡', '🤬', '🤯',
-                        '😳', '🥵', '🥶', '😱', '😨', '😰', '😥', '😓', '🤗', '🤔', '🤭', '🤫',
-                        '🤥', '😶', '😐', '😑', '😬', '🙄', '😯', '😦', '😧', '😮', '😲', '🥱',
-                        '😴', '🤤', '😪', '😵', '🤐', '🥴', '🤢', '🤮', '🤧', '😷', '🤒', '🤕',
-                        '👍', '👎', '👌', '🤏', '✌️', '🤞', '🤟', '🤘', '🤙', '👈', '👉', '👆',
-                        '👇', '✋', '🤚', '🖐️', '🖖', '👋', '💪', '🙏', '🤲', '👐', '🙌', '👏',
-                        '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '💔', '❣️', '💕', '💞', '💓',
-                        '💗', '💖', '💘', '💝', '💟', '🔥', '✨', '🌟', '⭐', '🌈', '☁️', '❄️'
-                      ].map(emoji => (
-                        <button
-                          key={emoji}
-                          type="button"
-                          onClick={() => {
-                            setEditForm(prev => ({ ...prev, caption: prev.caption + emoji }));
-                            setShowEmojiPickerEdit(false);
-                          }}
-                          className="w-9 h-9 flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors text-lg"
-                        >
-                          {emoji}
-                        </button>
-                      ))}
-                    </div>
-                    <div className="absolute bottom-[-6px] left-3 w-3 h-3 bg-white dark:bg-gray-900 border-r border-b border-gray-100 dark:border-gray-800 rotate-45" />
+                  <div className="absolute bottom-full left-0 mb-2 z-[120] shadow-2xl rounded-2xl overflow-hidden border border-gray-100 dark:border-gray-800 animate-in fade-in zoom-in-95 duration-200">
+                    <EmojiPicker 
+                      onEmojiClick={(emojiObject) => {
+                        setEditForm(prev => ({ ...prev, caption: prev.caption + emojiObject.emoji }));
+                        setShowEmojiPickerEdit(false);
+                      }}
+                      theme={theme === 'dark' ? 'dark' : 'light'}
+                      lazyLoadEmojis={true}
+                      searchDisabled={true}
+                      skinTonesDisabled={true}
+                      height={350}
+                    />
                   </div>
                 </>
               )}

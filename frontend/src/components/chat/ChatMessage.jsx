@@ -1,12 +1,23 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Disc3, BookOpen, Pause, Play, Flag } from 'lucide-react';
+import { Disc3, BookOpen, Pause, Play, Flag, MoreVertical, Trash2, XCircle, Ban } from 'lucide-react';
 import ReportModal from '../common/ReportModal';
+import ConfirmDialog from '../common/ConfirmDialog';
 import { useLanguage } from '../../context/LanguageContext';
 
-const ChatMessage = ({ msg, playingId, setPlayingId, isUserOnline = false }) => {
+const ChatMessage = ({ msg, playingId, setPlayingId, isUserOnline = false, onDelete }) => {
   const { t } = useLanguage();
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+  const [deleteMode, setDeleteMode] = useState(null);
+
+  const confirmDelete = () => {
+    if (deleteMode) {
+      onDelete(msg.id, deleteMode);
+      setDeleteMode(null);
+    }
+  };
+
   return (
     <div className={`flex gap-3 max-w-[85%] sm:max-w-[70%] ${msg.isMe ? 'ml-auto flex-row-reverse' : ''}`}>
       {!msg.isMe && (
@@ -34,14 +45,18 @@ const ChatMessage = ({ msg, playingId, setPlayingId, isUserOnline = false }) => 
         )}
 
         {/* Message */}
-        {msg.text && (
+        {msg.messageType === 'DELETED' ? (
+          <div className={`px-4 py-2.5 rounded-2xl shadow-sm text-sm italic border flex items-center gap-2 ${msg.isMe ? 'bg-transparent text-primary-300 border-primary-200' : 'bg-transparent text-gray-400 border-gray-200 dark:border-gray-700'}`}>
+            <Ban size={14} /> Tin nhắn đã bị thu hồi
+          </div>
+        ) : msg.text ? (
           <div className={`px-4 py-2.5 rounded-2xl shadow-sm text-sm ${msg.isMe ? 'bg-primary-500 text-white rounded-br-sm' : 'bg-gray-100 dark:bg-gray-800 text-text-color rounded-bl-sm'}`}>
             {msg.text}
           </div>
-        )}
+        ) : null}
 
         {/* Audio/Book */}
-        {msg.media && (
+        {msg.media && msg.messageType !== 'DELETED' && (
           <div className={`mt-1 bg-surface-color border border-gray-200 dark:border-gray-700 rounded-xl p-3 flex gap-3 shadow-md w-64 ${msg.isMe ? 'rounded-tr-sm' : 'rounded-tl-sm'}`}>
             <div className={`w-14 h-14 rounded-lg flex-shrink-0 flex items-center justify-center relative overflow-hidden ${msg.media.cover}`}>
               <div className="absolute inset-0 bg-black/20" />
@@ -81,6 +96,43 @@ const ChatMessage = ({ msg, playingId, setPlayingId, isUserOnline = false }) => 
           )}
         </div>
       </div>
+
+      {msg.isMe && msg.messageType !== 'DELETED' && (
+        <div className="flex flex-col justify-center relative">
+          <button onClick={() => setShowMenu(!showMenu)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+            <MoreVertical size={14} />
+          </button>
+          {showMenu && (
+            <>
+              <div className="fixed inset-0 z-[60]" onClick={() => setShowMenu(false)} />
+              <div className="absolute right-full top-1/2 -translate-y-1/2 mr-2 w-40 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-100 dark:border-gray-700 p-1 z-[70] animate-in fade-in zoom-in-95 duration-200">
+                <button 
+                  onClick={() => { setShowMenu(false); setDeleteMode('forMe'); }} 
+                  className="flex items-center gap-2 w-full px-3 py-2 text-xs text-text-color hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                >
+                  <Trash2 size={14} /> Xóa ở phía tôi
+                </button>
+                <button 
+                  onClick={() => { setShowMenu(false); setDeleteMode('forEveryone'); }} 
+                  className="flex items-center gap-2 w-full px-3 py-2 text-xs text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-lg transition-colors mt-0.5"
+                >
+                  <XCircle size={14} /> Thu hồi
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      <ConfirmDialog
+        open={!!deleteMode}
+        danger={true}
+        title={deleteMode === 'forEveryone' ? 'Thu hồi tin nhắn' : 'Xóa tin nhắn'}
+        message={deleteMode === 'forEveryone' ? 'Bạn có chắc chắn muốn thu hồi tin nhắn này với mọi người không?' : 'Bạn có chắc chắn muốn xóa tin nhắn này ở phía bạn không? Tin nhắn vẫn sẽ hiển thị với người khác.'}
+        confirmLabel={deleteMode === 'forEveryone' ? 'Thu hồi' : 'Xóa'}
+        onClose={() => setDeleteMode(null)}
+        onConfirm={confirmDelete}
+      />
 
       <ReportModal
         isOpen={isReportModalOpen}

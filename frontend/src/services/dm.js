@@ -66,3 +66,14 @@ export const upsertDmThread = async (userId, peerUserId) => {
     body: JSON.stringify({ userId, peerUserId }),
   });
 };
+
+export const deleteDmMessage = async (messageId, mode, userId) => {
+  const params = new URLSearchParams({
+    mode,
+    userId: String(userId),
+  });
+  return request(`/dm/messages/${messageId}?${params.toString()}`, {
+    method: 'DELETE',
+    auth: true,
+  });
+};

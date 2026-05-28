@@ -4,7 +4,7 @@ import { useLanguage } from '../context/LanguageContext';
 import ChatList from '../components/chat/ChatList';
 import ChatWindow from '../components/chat/ChatWindow';
 import { getCurrentUser } from '../services/auth';
-import { getAllDmMessages, getDmThreads, sendDmMessage } from '../services/dm';
+import { getAllDmMessages, getDmThreads, sendDmMessage, deleteDmMessage } from '../services/dm';
 import { disconnectRealtime, subscribeTopic } from '../lib/realtime';
 
 const AVATAR_CLASSES = [
@@ -155,6 +155,19 @@ const Chat = () => {
             return;
           }
 
+          if (incoming.messageType === 'DELETED') {
+            setMessages((prev) => prev.map((m) => m.id === incoming.messageId ? { ...m, messageType: 'DELETED', text: null, cardPayloadJson: null, media: null } : m));
+            setChats((prev) => prev.map((chat) => (
+              chat.id === activeChat
+                ? {
+                    ...chat,
+                    lastMsg: 'Tin nhắn đã bị thu hồi',
+                  }
+                : chat
+            )));
+            return;
+          }
+
           setMessages((prev) => [...prev, {
             id: incoming.messageId,
             user: incoming.senderDisplayName || `Người dùng ${incoming.senderUserId}`,
@@ -219,6 +232,15 @@ const Chat = () => {
     }
   };
 
+  const handleDeleteMessage = async (messageId, mode) => {
+    setMessages((prev) => prev.filter((m) => m.id !== messageId));
+    try {
+      await deleteDmMessage(messageId, mode, currentUser.id);
+    } catch (err) {
+      console.error('Failed to delete message:', err);
+    }
+  };
+
   if (!currentUser?.id) {
     return (
       <div className="flex h-[calc(100vh-8rem)] items-center justify-center rounded-2xl border border-gray-200 dark:border-gray-800 bg-surface-color text-text-muted">
@@ -246,6 +268,7 @@ const Chat = () => {
         draftMessage={draftMessage}
         setDraftMessage={setDraftMessage}
         onSendMessage={handleSendMessage}
+        onDeleteMessage={handleDeleteMessage}
         isSending={isSending}
         isLoadingMessages={isLoadingMessages}
       />

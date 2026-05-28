@@ -203,6 +203,13 @@ public class DmServiceImpl implements DmService {
             }
             message.setDeletedForEveryone(true);
             dmMessageRepository.save(message);
+            
+            DmMessageResponse deleteEvent = DmMessageResponse.builder()
+                    .messageId(message.getId())
+                    .threadId(thread.getId())
+                    .messageType(MessageType.DELETED.name())
+                    .build();
+            broadcastThreadMessage(thread.getId(), deleteEvent);
             return;
         }
 
@@ -273,7 +280,11 @@ public class DmServiceImpl implements DmService {
         List<DmMessage> messages = dmMessageRepository.findVisibleMessagesWithCursor(
                 thread.getId(), requesterId, null, null, PageRequest.of(0, 1)
         );
-        String preview = messages.isEmpty() ? null : messages.get(0).getContentText();
+        String preview = null;
+        if (!messages.isEmpty()) {
+            DmMessage lastMsg = messages.get(0);
+            preview = lastMsg.getDeletedForEveryone() ? "Tin nhắn đã bị thu hồi" : lastMsg.getContentText();
+        }
 
         return DmThreadResponse.builder()
                 .threadId(thread.getId())
@@ -303,12 +314,12 @@ public class DmServiceImpl implements DmService {
                             .senderUserId(message.getSender().getId())
                             .senderDisplayName(message.getSender().getDisplayName())
                             .senderAvatarUrl(profile != null ? profile.getAvatarUrl() : null)
-                            .messageType(message.getMessageType().name())
-                            .contentText(message.getContentText())
-                            .cardPayloadJson(message.getCardPayloadJson())
+                            .messageType(message.getDeletedForEveryone() ? MessageType.DELETED.name() : message.getMessageType().name())
+                            .contentText(message.getDeletedForEveryone() ? null : message.getContentText())
+                            .cardPayloadJson(message.getDeletedForEveryone() ? null : message.getCardPayloadJson())
                             .replyToMessageId(message.getReplyToMessage() != null ? message.getReplyToMessage().getId() : null)
                             .createdAt(message.getCreatedAt())
-                            .reactions(extractReactionSummary(message.getCardPayloadJson()))
+                            .reactions(message.getDeletedForEveryone() ? Map.of() : extractReactionSummary(message.getCardPayloadJson()))
                             .build();
                 })
                 .toList();
@@ -322,12 +333,12 @@ public class DmServiceImpl implements DmService {
                 .senderUserId(message.getSender().getId())
                 .senderDisplayName(message.getSender().getDisplayName())
                 .senderAvatarUrl(profile != null ? profile.getAvatarUrl() : null)
-                .messageType(message.getMessageType().name())
-                .contentText(message.getContentText())
-                .cardPayloadJson(message.getCardPayloadJson())
+                .messageType(message.getDeletedForEveryone() ? MessageType.DELETED.name() : message.getMessageType().name())
+                .contentText(message.getDeletedForEveryone() ? null : message.getContentText())
+                .cardPayloadJson(message.getDeletedForEveryone() ? null : message.getCardPayloadJson())
                 .replyToMessageId(message.getReplyToMessage() != null ? message.getReplyToMessage().getId() : null)
                 .createdAt(message.getCreatedAt())
-                .reactions(extractReactionSummary(message.getCardPayloadJson()))
+                .reactions(message.getDeletedForEveryone() ? Map.of() : extractReactionSummary(message.getCardPayloadJson()))
                 .build();
     }
 

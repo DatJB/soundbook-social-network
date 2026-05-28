@@ -65,3 +65,36 @@ export async function voteQueueItem(roomId, queueItemId) {
     auth: true,
   });
 }
+
+// Room member actions
+export async function kickUser(roomId, targetUserId, hostUserId) {
+  return request(`${API_BASE}/${roomId}/members/${targetUserId}/kick`, {
+    method: 'POST',
+    body: JSON.stringify({ userId: hostUserId }),
+    auth: true,
+  });
+}
+
+export async function banUser(roomId, targetUserId, hostUserId) {
+  return request(`${API_BASE}/${roomId}/members/${targetUserId}/ban`, {
+    method: 'POST',
+    body: JSON.stringify({ userId: hostUserId }),
+    auth: true,
+  });
+}
+
+export async function approveUser(roomId, targetUserId, hostUserId) {
+  return request(`${API_BASE}/${roomId}/members/${targetUserId}/approve`, {
+    method: 'POST',
+    body: JSON.stringify({ userId: hostUserId }),
+    auth: true,
+  });
+}
+
+export async function rejectUser(roomId, targetUserId, hostUserId) {
+  return request(`${API_BASE}/${roomId}/members/${targetUserId}/reject`, {
+    method: 'POST',
+    body: JSON.stringify({ userId: hostUserId }),
+    auth: true,
+  });
+}

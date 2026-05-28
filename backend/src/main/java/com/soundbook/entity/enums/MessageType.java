@@ -2,5 +2,6 @@ package com.soundbook.entity.enums;
 
 public enum MessageType {
     TEXT,
-    CARD
+    CARD,
+    DELETED
 }

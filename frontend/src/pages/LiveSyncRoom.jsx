@@ -31,11 +31,13 @@ const LiveSyncRoom = () => {
   const { showToast } = useToast();
   
   const lastSyncRef = useRef(Date.now());
+  const prevPendingLengthRef = useRef(0);
   const { session, joinSession, leaveSession, updateMembers, setLocalPlayback } = useRoomSession();
 
   // Derive live state from global session — no stale closure, no double-subscription
   const queue = session?.queue || [];
   const members = session?.members || [];
+  const pendingMembers = session?.pendingMembers || [];
   const chatMessages = session?.chatMessages || [];
   const playbackState = session?.playback ? {
     trackId: session.playback.trackId,
@@ -48,6 +50,10 @@ const LiveSyncRoom = () => {
   const isPlaying = session?.playback?.isPlaying || false;
 
   const isHost = currentUser?.id === room?.hostUserId;
+  const isPending = session?.pendingMembers?.some(m => m.userId === currentUser?.id) || false;
+  const isActiveMember = session?.members?.some(m => m.userId === currentUser?.id) || false;
+  // Ensure session is loaded before evaluating isGhost to avoid kicking during initial load
+  const isGhost = !!session && !isHost && !isActiveMember && !isPending && room;
 
   const syncRoomDetail = async (targetRoomId) => {
     const roomResponse = await getRoomDetail(targetRoomId);
@@ -56,7 +62,7 @@ const LiveSyncRoom = () => {
     if (!roomData) return null;
 
     setRoom(roomData);
-    updateMembers(roomData.members || []);
+    updateMembers(roomData.members || [], roomData.pendingMembers || []);
 
     return roomData;
   };
@@ -86,10 +92,13 @@ const LiveSyncRoom = () => {
         const initialData = await syncRoomDetail(parsedRoomId);
 
         if (initialData && (initialData.status === 'LIVE' || initialData.hostUserId === currentUser.id)) {
-          try {
-            await joinRoom(parsedRoomId, currentUser.id);
-          } catch (joinError) {
-            if (!isAlreadyJoinedError(joinError)) throw joinError;
+          const isActiveMember = initialData.members?.some(m => m.userId === currentUser.id);
+          if (!isActiveMember) {
+            try {
+              await joinRoom(parsedRoomId, currentUser.id);
+            } catch (joinError) {
+              if (!isAlreadyJoinedError(joinError)) throw joinError;
+            }
           }
         } else if (!initialData) {
           // no data — fall through to mock below
@@ -190,13 +199,33 @@ const LiveSyncRoom = () => {
     // Context already receives STOMP updates — just keep local UI state in sync
   }, [playbackState, room, queue]);
 
-  // Handle room end signal
+  // Handle room end or kick signal
   useEffect(() => {
     if (session?.ended && roomIdParam) {
       showToast('Phòng đã kết thúc bởi quản trị viên hoặc chủ phòng.', 'info');
       navigate('/feed', { replace: true });
+    } else if (session?.kicked && roomIdParam) {
+      const reasonMap = {
+        'KICKED': 'Bạn đã bị chủ phòng mời ra khỏi phòng.',
+        'BANNED': 'Bạn đã bị cấm tham gia phòng này.',
+        'REJECTED': 'Yêu cầu tham gia phòng của bạn đã bị từ chối.'
+      };
+      showToast(reasonMap[session.kickReason] || 'Bạn đã rời phòng.', 'warning');
+      navigate('/feed', { replace: true });
+    } else if (isGhost && roomIdParam) {
+      // If user is not host, not in members, and not in pendingMembers -> they have been removed!
+      showToast('Bạn không có trong danh sách phòng hoặc đã bị mời ra.', 'warning');
+      navigate('/feed', { replace: true });
     }
-  }, [session?.ended, roomIdParam, navigate, showToast]);
+  }, [session?.ended, session?.kicked, session?.kickReason, isGhost, roomIdParam, navigate, showToast]);
+
+  // Notify host of new pending members
+  useEffect(() => {
+    if (isHost && pendingMembers.length > prevPendingLengthRef.current) {
+      showToast('Có người đang xin vào phòng!', 'info');
+    }
+    prevPendingLengthRef.current = pendingMembers.length;
+  }, [pendingMembers.length, isHost, showToast]);
 
   const handleSendMessage = async () => {
     if (!chatInput.trim() || !roomId || !currentUser?.id || isSendingMessage) return;
@@ -349,6 +378,26 @@ const LiveSyncRoom = () => {
     return <div className="flex h-[calc(100vh-8rem)] items-center justify-center">Room not found</div>;
   }
 
+  if (isPending) {
+    return (
+      <div className="flex flex-col h-[calc(100vh-8rem)] items-center justify-center bg-surface-color rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm p-8 text-center animate-in fade-in zoom-in duration-300">
+        <div className="w-20 h-20 rounded-full bg-primary-500/10 flex items-center justify-center text-primary-500 mb-6">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-500"></div>
+        </div>
+        <h2 className="text-2xl font-bold mb-2">Đang chờ chủ phòng duyệt</h2>
+        <p className="text-text-muted max-w-md">
+          Phòng này là phòng riêng tư. Bạn cần đợi chủ phòng ({room.hostDisplayName}) đồng ý để có thể vào trong.
+        </p>
+        <button 
+          onClick={() => navigate('/feed', { replace: true })}
+          className="mt-8 px-6 py-2.5 rounded-xl bg-gray-100 dark:bg-gray-800 font-semibold hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+        >
+          Quay lại trang chủ
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-8rem)]">
 
@@ -448,9 +497,12 @@ const LiveSyncRoom = () => {
           </button>
           <button
             onClick={() => setActiveRightPanel('members')}
-            className={`flex-1 py-3 text-sm font-semibold flex items-center justify-center gap-2 transition-colors ${activeRightPanel === 'members' ? 'text-primary-500 border-b-2 border-primary-500 bg-primary-500/5' : 'text-text-muted hover:bg-gray-50 dark:hover:bg-gray-800/50'}`}
+            className={`flex-1 py-3 text-sm font-semibold flex items-center justify-center gap-2 transition-colors relative ${activeRightPanel === 'members' ? 'text-primary-500 border-b-2 border-primary-500 bg-primary-500/5' : 'text-text-muted hover:bg-gray-50 dark:hover:bg-gray-800/50'}`}
           >
             <Users size={16} /> {members.length}
+            {isHost && pendingMembers.length > 0 && (
+              <span className="absolute top-2 right-4 w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
+            )}
           </button>
         </div>
 
@@ -474,7 +526,13 @@ const LiveSyncRoom = () => {
           />
         )}
         {activeRightPanel === 'members' && (
-          <RoomMembers members={members} />
+          <RoomMembers 
+            members={members} 
+            pendingMembers={session?.pendingMembers || []}
+            isHost={isHost}
+            roomId={roomId}
+            hostUserId={currentUser?.id}
+          />
         )}
 
       </div>

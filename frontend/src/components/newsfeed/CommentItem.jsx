@@ -1,7 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { MoreHorizontal, Send, Smile, Flag, Heart, ThumbsUp, Flame, Laugh, Frown, Ghost, Angry, Trash2, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import EmojiPicker from 'emoji-picker-react';
 import { useLanguage } from '../../context/LanguageContext';
+import { useTheme } from '../../context/ThemeContext';
 import ReportModal from '../common/ReportModal';
 import ReactionModal from '../common/ReactionModal';
 import { getCurrentUser, resolveUrl } from '../../services/auth';
@@ -21,6 +23,7 @@ const REACTS = [
 
 const CommentItem = ({ comment, postOwnerId, onDelete, onReply, postId }) => {
   const { t } = useLanguage();
+  const { theme } = useTheme();
   const [react, setReact] = useState(comment.currentUserReaction?.toUpperCase() || null);
   const [reactCount, setReactCount] = useState(comment.reacts || 0);
   const [showReacts, setShowReacts] = useState(false);
@@ -406,35 +409,18 @@ const CommentItem = ({ comment, postOwnerId, onDelete, onReply, postId }) => {
                       className="fixed inset-0 z-10" 
                       onClick={() => setShowEmojiPicker(false)}
                     />
-                    <div className="absolute bottom-full right-0 mb-3 p-3 bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-800 w-64 z-20 animate-in fade-in zoom-in-95 duration-200">
-                      <div className="max-h-60 overflow-y-auto overflow-x-hidden custom-scrollbar grid grid-cols-6 gap-1 p-1">
-                        {[
-                          '😀', '😂', '🤣', '😍', '🥰', '😘', '😋', '😛', '😜', '🤪', '🤨', '🧐',
-                          '🤓', '😎', '🤩', '🥳', '😏', '😒', '😞', '😔', '😟', '😕', '🙁', '☹️',
-                          '😣', '😖', '😫', '😩', '🥺', '😢', '😭', '😤', '😠', '😡', '🤬', '🤯',
-                          '😳', '🥵', '🥶', '😱', '😨', '😰', '😥', '😓', '🤗', '🤔', '🤭', '🤫',
-                          '🤥', '😶', '😐', '😑', '😬', '🙄', '😯', '😦', '😧', '😮', '😲', '🥱',
-                          '😴', '🤤', '😪', '😵', '🤐', '🥴', '🤢', '🤮', '🤧', '😷', '🤒', '🤕',
-                          '👍', '👎', '👌', '🤏', '✌️', '🤞', '🤟', '🤘', '🤙', '👈', '👉', '👆',
-                          '👇', '✋', '🤚', '🖐️', '🖖', '👋', '💪', '🙏', '🤲', '👐', '🙌', '👏',
-                          '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '💔', '❣️', '💕', '💞', '💓',
-                          '💗', '💖', '💘', '💝', '💟', '🔥', '✨', '🌟', '⭐', '🌈', '☁️', '❄️'
-                        ].map(emoji => (
-                          <button
-                            key={emoji}
-                            type="button"
-                            onClick={() => {
-                              setReplyText(prev => prev + emoji);
-                              setShowEmojiPicker(false);
-                              replyInputRef.current?.focus();
-                            }}
-                            className="w-9 h-9 flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors text-lg"
-                          >
-                            {emoji}
-                          </button>
-                        ))}
-                      </div>
-                      <div className="absolute bottom-[-6px] right-3 w-3 h-3 bg-white dark:bg-gray-900 border-r border-b border-gray-100 dark:border-gray-800 rotate-45" />
+                    <div className="absolute bottom-full right-0 mb-3 z-[70] shadow-2xl rounded-2xl overflow-hidden border border-gray-100 dark:border-gray-800 animate-in fade-in zoom-in-95 duration-200">
+                      <EmojiPicker 
+                        onEmojiClick={(emojiObject) => {
+                          setReplyText(prev => prev + emojiObject.emoji);
+                          replyInputRef.current?.focus();
+                        }}
+                        theme={theme === 'dark' ? 'dark' : 'light'}
+                        lazyLoadEmojis={true}
+                        searchDisabled={true}
+                        skinTonesDisabled={true}
+                        height={350}
+                      />
                     </div>
                   </>
                 )}

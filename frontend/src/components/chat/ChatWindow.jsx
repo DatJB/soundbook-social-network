@@ -1,8 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Info, MoreVertical, Disc3, Plus, Image, Smile, Send, MessageSquare, Flag } from 'lucide-react';
+import { Info, MoreVertical, Disc3, Plus, Image, Smile, Send, MessageSquare, Flag, Users } from 'lucide-react';
+import EmojiPicker from 'emoji-picker-react';
 import ChatMessage from './ChatMessage';
 import ReportModal from '../common/ReportModal';
+import { useTheme } from '../../context/ThemeContext';
 
 const ChatWindow = ({
   t,
@@ -13,6 +15,7 @@ const ChatWindow = ({
   draftMessage,
   setDraftMessage,
   onSendMessage,
+  onDeleteMessage,
   isSending,
   isLoadingMessages,
 }) => {
@@ -20,6 +23,7 @@ const ChatWindow = ({
   const [showMenu, setShowMenu] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const { theme } = useTheme();
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -107,6 +111,7 @@ const ChatWindow = ({
                     playingId={playingId}
                     setPlayingId={setPlayingId}
                     isUserOnline={!msg.isMe}
+                    onDelete={onDeleteMessage}
                   />
                 ))
               )}
@@ -141,34 +146,17 @@ const ChatWindow = ({
                 {showEmojiPicker && (
                   <>
                     <div className="fixed inset-0 z-[60]" onClick={() => setShowEmojiPicker(false)} />
-                    <div className="absolute bottom-full right-0 mb-4 p-3 bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-800 w-72 z-[70] animate-in fade-in zoom-in-95 slide-in-from-bottom-2 duration-200">
-                      <div className="max-h-60 overflow-y-auto overflow-x-hidden custom-scrollbar grid grid-cols-7 gap-1 p-1">
-                        {[
-                          '😀', '😂', '🤣', '😍', '🥰', '😘', '😋', '😛', '😜', '🤪', '🤨', '🧐',
-                          '🤓', '😎', '🤩', '🥳', '😏', '😒', '😞', '😔', '😟', '😕', '🙁', '☹️',
-                          '😣', '😖', '😫', '😩', '🥺', '😢', '😭', '😤', '😠', '😡', '🤬', '🤯',
-                          '😳', '🥵', '🥶', '😱', '😨', '😰', '😥', '😓', '🤗', '🤔', '🤭', '🤫',
-                          '🤥', '😶', '😐', '😑', '😬', '🙄', '😯', '😦', '😧', '😮', '😲', '🥱',
-                          '😴', '🤤', '😪', '😵', '🤐', '🥴', '🤢', '🤮', '🤧', '😷', '🤒', '🤕',
-                          '👍', '👎', '👌', '🤏', '✌️', '🤞', '🤟', '🤘', '🤙', '👈', '👉', '👆',
-                          '👇', '✋', '🤚', '🖐️', '🖖', '👋', '💪', '🙏', '🤲', '👐', '🙌', '👏',
-                          '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '💔', '❣️', '💕', '💞', '💓',
-                          '💗', '💖', '💘', '💝', '💟', '🔥', '✨', '🌟', '⭐', '🌈', '☁️', '❄️'
-                        ].map(emoji => (
-                          <button
-                            key={emoji}
-                            type="button"
-                            onClick={() => {
-                              setDraftMessage(prev => prev + emoji);
-                              setShowEmojiPicker(false);
-                            }}
-                            className="w-9 h-9 flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors text-lg"
-                          >
-                            {emoji}
-                          </button>
-                        ))}
-                      </div>
-                      <div className="absolute bottom-[-6px] right-4 w-3 h-3 bg-white dark:bg-gray-900 border-r border-b border-gray-100 dark:border-gray-800 rotate-45" />
+                    <div className="absolute bottom-full right-0 mb-4 z-[70] shadow-2xl rounded-2xl overflow-hidden border border-gray-100 dark:border-gray-800 animate-in fade-in zoom-in-95 slide-in-from-bottom-2 duration-200">
+                      <EmojiPicker 
+                        onEmojiClick={(emojiObject) => {
+                          setDraftMessage(prev => prev + emojiObject.emoji);
+                        }}
+                        theme={theme === 'dark' ? 'dark' : 'light'}
+                        lazyLoadEmojis={true}
+                        searchDisabled={true}
+                        skinTonesDisabled={true}
+                        height={350}
+                      />
                     </div>
                   </>
                 )}

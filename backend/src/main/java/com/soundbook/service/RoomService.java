@@ -31,4 +31,9 @@ public interface RoomService {
     RoomQueueItemResponse voteQueueItem(Long queueItemId);
 
     void removeQueueItem(Long roomId, Long queueItemId);
+
+    void kickMember(Long roomId, Long targetUserId, Long hostUserId);
+    void banMember(Long roomId, Long targetUserId, Long hostUserId);
+    void approveMember(Long roomId, Long targetUserId, Long hostUserId);
+    void rejectMember(Long roomId, Long targetUserId, Long hostUserId);
 }

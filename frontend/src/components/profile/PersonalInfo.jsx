@@ -172,7 +172,7 @@ const PersonalInfo = ({
             </div>
           </div>
         </div>
-      ) : (
+      ) : isGuest ? (
         <div className="mt-4 space-y-3">
           <ReadOnlyBlock icon={AlignLeft} title="Mô tả" visibility={!isGuest ? formData.bioVisibility : null}>
             {formData.bio}
@@ -203,7 +203,7 @@ const PersonalInfo = ({
             </div>
           ) : null}
         </div>
-      )}
+      ) : null}
     </div>
   );
 };

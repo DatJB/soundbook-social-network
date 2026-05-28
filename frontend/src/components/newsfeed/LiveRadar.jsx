@@ -37,6 +37,7 @@ const RoomModal = ({ room, mode = 'menu', onClose, onCreated }) => {
   const [view, setView] = useState(mode);
   const [code, setCode] = useState(room?.id ? String(room.id) : '');
   const [roomName, setRoomName] = useState('');
+  const [isPublic, setIsPublic] = useState(true);
   const [createdRoomId, setCreatedRoomId] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -106,7 +107,7 @@ const RoomModal = ({ room, mode = 'menu', onClose, onCreated }) => {
     setIsSubmitting(true);
 
     try {
-      const response = await createRoom(currentUser.id, roomName.trim(), `Hosted by ${currentUser.displayName || 'user'}`, true);
+      const response = await createRoom(currentUser.id, roomName.trim(), `Hosted by ${currentUser.displayName || 'user'}`, isPublic);
       const newRoomId = response?.data?.roomId;
 
       if (!newRoomId) {
@@ -266,6 +267,20 @@ const RoomModal = ({ room, mode = 'menu', onClose, onCreated }) => {
                     />
                   </div>
                 </div>
+                
+                <div className="flex items-center gap-3 py-1">
+                  <input
+                    type="checkbox"
+                    id="isPublicToggle"
+                    checked={!isPublic}
+                    onChange={(e) => setIsPublic(!e.target.checked)}
+                    className="w-4 h-4 rounded border-gray-300 text-rose-500 focus:ring-rose-500"
+                  />
+                  <label htmlFor="isPublicToggle" className="text-sm font-medium text-text-color cursor-pointer">
+                    Phòng riêng tư (Yêu cầu duyệt)
+                  </label>
+                </div>
+
                 <p className="text-xs text-text-muted">Bạn có thể thêm bài hát YouTube sau khi vào phòng.</p>
                 {errorMessage && <p className="text-xs text-red-500">{errorMessage}</p>}
                 <div className="flex gap-3 pt-1">

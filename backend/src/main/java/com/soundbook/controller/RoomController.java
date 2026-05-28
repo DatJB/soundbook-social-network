@@ -67,4 +67,40 @@ public class RoomController {
     public ApiResponse<RoomQueueItemResponse> voteQueueItem(@PathVariable Long queueItemId) {
         return ApiResponse.success(roomService.voteQueueItem(queueItemId));
     }
+
+    @PostMapping("/{roomId}/members/{targetId}/kick")
+    public ApiResponse<Void> kickMember(
+            @PathVariable Long roomId,
+            @PathVariable Long targetId,
+            @Valid @RequestBody RoomActionRequest request) {
+        roomService.kickMember(roomId, targetId, request.getUserId());
+        return ApiResponse.success();
+    }
+
+    @PostMapping("/{roomId}/members/{targetId}/ban")
+    public ApiResponse<Void> banMember(
+            @PathVariable Long roomId,
+            @PathVariable Long targetId,
+            @Valid @RequestBody RoomActionRequest request) {
+        roomService.banMember(roomId, targetId, request.getUserId());
+        return ApiResponse.success();
+    }
+
+    @PostMapping("/{roomId}/members/{targetId}/approve")
+    public ApiResponse<Void> approveMember(
+            @PathVariable Long roomId,
+            @PathVariable Long targetId,
+            @Valid @RequestBody RoomActionRequest request) {
+        roomService.approveMember(roomId, targetId, request.getUserId());
+        return ApiResponse.success();
+    }
+
+    @PostMapping("/{roomId}/members/{targetId}/reject")
+    public ApiResponse<Void> rejectMember(
+            @PathVariable Long roomId,
+            @PathVariable Long targetId,
+            @Valid @RequestBody RoomActionRequest request) {
+        roomService.rejectMember(roomId, targetId, request.getUserId());
+        return ApiResponse.success();
+    }
 }

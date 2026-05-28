@@ -41,7 +41,9 @@ export const RoomSessionProvider = ({ children }) => {
    *   playback: { trackId, trackTitle, trackThumbnail, isPlaying, positionMs, localReceivedAt, updatedAt },
    *   queue: [],
    *   members: [],
+   *   pendingMembers: [],
    *   chatMessages: [],
+   *   kicked: false,
    * }
    */
 
@@ -78,7 +80,10 @@ export const RoomSessionProvider = ({ children }) => {
       setSession(prev => prev ? {
         ...prev,
         members: roomData.members || prev.members,
+        pendingMembers: roomData.pendingMembers || prev.pendingMembers,
         queue: queue || prev.queue,
+        kicked: false,
+        kickReason: null,
       } : prev);
       return;
     }
@@ -102,6 +107,7 @@ export const RoomSessionProvider = ({ children }) => {
       playback: buildPlayback(roomData.state, initialQueue),
       queue: initialQueue,
       members: roomData.members || [],
+      pendingMembers: roomData.pendingMembers || [],
       chatMessages: [],
     });
 
@@ -216,8 +222,20 @@ export const RoomSessionProvider = ({ children }) => {
         }
       );
 
+      const unsubPersonal = await subscribeTopic(
+        `/topic/rooms/${roomId}/members/${currentUserId}`,
+        (event) => {
+          if (event?.action === 'KICKED' || event?.action === 'BANNED' || event?.action === 'REJECTED') {
+            setSession(prev => prev ? { ...prev, kicked: true, kickReason: event.action } : prev);
+          } else if (event?.action === 'APPROVED') {
+             // Let the 5s polling pick it up, or set a flag to force UI reload
+             setSession(prev => prev ? { ...prev, approved: true } : prev);
+          }
+        }
+      );
+
       unsubscribeAllRef.current = () => {
-        [unsubPlayback, unsubStatus, unsubQueue, unsubQueueVotes, unsubQueueRemove, unsubMembers, unsubMessages]
+        [unsubPlayback, unsubStatus, unsubQueue, unsubQueueVotes, unsubQueueRemove, unsubMembers, unsubMessages, unsubPersonal]
           .forEach(fn => { try { fn(); } catch (_) {} });
       };
     } catch (e) {
@@ -249,7 +267,7 @@ export const RoomSessionProvider = ({ children }) => {
   // ─────────────────────────────────────────────────────────────────────────────
   // updateMembers — called by polling in LiveSyncRoom
   // ─────────────────────────────────────────────────────────────────────────────
-  const updateMembers = useCallback((members, hostUserId, currentUserId) => {
+  const updateMembers = useCallback((members, pendingMembers = [], hostUserId, currentUserId) => {
     setSession(prev => {
       if (!prev) return prev;
       // If hostUserId changed, update isHost flag
@@ -257,11 +275,12 @@ export const RoomSessionProvider = ({ children }) => {
         return {
           ...prev,
           members,
+          pendingMembers,
           hostUserId,
           isHost: hostUserId === currentUserId,
         };
       }
-      return { ...prev, members };
+      return { ...prev, members, pendingMembers };
     });
   }, []);
 

@@ -122,20 +122,32 @@ public class RoomServiceImpl implements RoomService {
         RoomMemberId memberId = new RoomMemberId(roomId, userId);
         RoomMember roomMember = roomMemberRepository.findById(memberId).orElse(null);
 
-        if (roomMember != null && roomMember.getLeftAt() == null) {
+        if (roomMember != null && roomMember.getLeftAt() == null && roomMember.getRole() != RoomRole.PENDING) {
             throw new AppException(ErrorCode.ROOM_ALREADY_JOINED);
         }
+
+        if (roomMember != null && roomMember.isBanned()) {
+            throw new AppException(ErrorCode.UNAUTHORIZED); // Or ROOM_BANNED
+        }
+
+        RoomRole roleToAssign = room.getIsPublic() ? RoomRole.MEMBER : RoomRole.PENDING;
 
         if (roomMember == null) {
             roomMember = RoomMember.builder()
                     .id(memberId)
                     .room(room)
                     .user(user)
-                    .role(RoomRole.MEMBER)
-                    .leftAt(null)
+                    .role(roleToAssign)
+                    .leftAt(room.getIsPublic() ? null : LocalDateTime.now()) // If pending, pretend they are not actively in the room yet by leaving leftAt non-null? Or better yet, we just rely on PENDING role to hide them from listeners count!
                     .build();
+            // Actually let's keep leftAt = null but they are PENDING. Listeners count must filter out PENDING!
+            // Wait, leftAt = null means they are actively requesting.
+            roomMember.setLeftAt(null);
         } else {
             roomMember.setLeftAt(null);
+            // If they are not the current host of the room, they cannot be HOST anymore!
+            // Even if they were the old host, their role must be downgraded.
+            roomMember.setRole(roleToAssign);
         }
 
         roomMemberRepository.save(roomMember);
@@ -225,6 +237,20 @@ public class RoomServiceImpl implements RoomService {
                 .collect(Collectors.toMap(UserProfile::getUserId, Function.identity()));
 
         List<RoomMemberResponse> members = activeMembers.stream()
+                .filter(m -> m.getRole() != RoomRole.PENDING)
+                .map(member -> {
+                    UserProfile profile = profileByUserId.get(member.getUser().getId());
+                    return RoomMemberResponse.builder()
+                            .userId(member.getUser().getId())
+                            .displayName(member.getUser().getDisplayName())
+                            .avatarUrl(profile != null ? profile.getAvatarUrl() : null)
+                            .role(member.getRole().name())
+                            .build();
+                })
+                .toList();
+
+        List<RoomMemberResponse> pendingMembers = activeMembers.stream()
+                .filter(m -> m.getRole() == RoomRole.PENDING)
                 .map(member -> {
                     UserProfile profile = profileByUserId.get(member.getUser().getId());
                     return RoomMemberResponse.builder()
@@ -251,6 +277,7 @@ public class RoomServiceImpl implements RoomService {
                 .listenersCount((long) members.size())
                 .state(toStateResponse(state))
                 .members(members)
+                .pendingMembers(pendingMembers)
                 .build();
     }
 
@@ -383,5 +410,78 @@ public class RoomServiceImpl implements RoomService {
         }
         
         roomQueueRepository.delete(item);
+    }
+
+    @Override
+    public void kickMember(Long roomId, Long targetUserId, Long hostUserId) {
+        Room room = roomRepository.findById(roomId).orElseThrow(() -> new AppException(ErrorCode.ROOM_NOT_FOUND));
+        if (!room.getHost().getId().equals(hostUserId)) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
+        
+        RoomMember target = roomMemberRepository.findById(new RoomMemberId(roomId, targetUserId))
+                .orElseThrow(() -> new AppException(ErrorCode.ROOM_MEMBER_NOT_FOUND));
+                
+        target.setLeftAt(LocalDateTime.now());
+        roomMemberRepository.save(target);
+        
+        messagingTemplate.convertAndSend("/topic/rooms/" + roomId + "/members/" + targetUserId, 
+            Map.of("action", "KICKED"));
+    }
+
+    @Override
+    public void banMember(Long roomId, Long targetUserId, Long hostUserId) {
+        Room room = roomRepository.findById(roomId).orElseThrow(() -> new AppException(ErrorCode.ROOM_NOT_FOUND));
+        if (!room.getHost().getId().equals(hostUserId)) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
+        
+        RoomMember target = roomMemberRepository.findById(new RoomMemberId(roomId, targetUserId))
+                .orElseThrow(() -> new AppException(ErrorCode.ROOM_MEMBER_NOT_FOUND));
+                
+        target.setLeftAt(LocalDateTime.now());
+        target.setBanned(true);
+        roomMemberRepository.save(target);
+        
+        messagingTemplate.convertAndSend("/topic/rooms/" + roomId + "/members/" + targetUserId, 
+            Map.of("action", "BANNED"));
+    }
+
+    @Override
+    public void approveMember(Long roomId, Long targetUserId, Long hostUserId) {
+        Room room = roomRepository.findById(roomId).orElseThrow(() -> new AppException(ErrorCode.ROOM_NOT_FOUND));
+        if (!room.getHost().getId().equals(hostUserId)) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
+        
+        RoomMember target = roomMemberRepository.findById(new RoomMemberId(roomId, targetUserId))
+                .orElseThrow(() -> new AppException(ErrorCode.ROOM_MEMBER_NOT_FOUND));
+                
+        if (target.getRole() == RoomRole.PENDING) {
+            target.setRole(RoomRole.MEMBER);
+            roomMemberRepository.save(target);
+            
+            messagingTemplate.convertAndSend("/topic/rooms/" + roomId + "/members/" + targetUserId, 
+                Map.of("action", "APPROVED"));
+        }
+    }
+
+    @Override
+    public void rejectMember(Long roomId, Long targetUserId, Long hostUserId) {
+        Room room = roomRepository.findById(roomId).orElseThrow(() -> new AppException(ErrorCode.ROOM_NOT_FOUND));
+        if (!room.getHost().getId().equals(hostUserId)) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
+        
+        RoomMember target = roomMemberRepository.findById(new RoomMemberId(roomId, targetUserId))
+                .orElseThrow(() -> new AppException(ErrorCode.ROOM_MEMBER_NOT_FOUND));
+                
+        if (target.getRole() == RoomRole.PENDING) {
+            target.setLeftAt(LocalDateTime.now());
+            roomMemberRepository.save(target);
+            
+            messagingTemplate.convertAndSend("/topic/rooms/" + roomId + "/members/" + targetUserId, 
+                Map.of("action", "REJECTED"));
+        }
     }
 }

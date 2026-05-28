@@ -311,9 +311,10 @@ CREATE TABLE IF NOT EXISTS rooms (
 CREATE TABLE IF NOT EXISTS room_members (
   room_id   BIGINT NOT NULL,
   user_id   BIGINT NOT NULL,
-  role      ENUM('HOST','MEMBER') NOT NULL DEFAULT 'MEMBER',
+  role      ENUM('HOST','MEMBER','PENDING') NOT NULL DEFAULT 'MEMBER',
   joined_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   left_at   DATETIME NULL,
+  is_banned TINYINT(1) NOT NULL DEFAULT 0,
   PRIMARY KEY (room_id, user_id),
   INDEX idx_room_members_user (user_id),
   CONSTRAINT fk_room_members_room
@@ -323,6 +324,9 @@ CREATE TABLE IF NOT EXISTS room_members (
     FOREIGN KEY (user_id) REFERENCES users(id)
     ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Migration for existing databases
+ALTER TABLE room_members MODIFY COLUMN role ENUM('HOST','MEMBER','PENDING') NOT NULL DEFAULT 'MEMBER';
 
 CREATE TABLE IF NOT EXISTS room_playback_state (
   room_id            BIGINT PRIMARY KEY,
