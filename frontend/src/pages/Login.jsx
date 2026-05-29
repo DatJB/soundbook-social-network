@@ -117,11 +117,14 @@ const Login = () => {
           <div className="absolute bottom-1/4 left-1/3 w-96 h-96 bg-yellow-500 rounded-full mix-blend-multiply filter blur-3xl opacity-50 animate-blob animation-delay-4000" />
 
           <div className="relative z-10 text-white max-w-lg">
-            <div className="flex items-center gap-3 mb-8">
-              <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center text-primary-600 animate-[spin_10s_linear_infinite]">
+            <div className="flex items-center gap-4 mb-8">
+              <div className="bg-white/90 p-2 rounded-2xl shadow-xl backdrop-blur-sm transform hover:scale-105 transition-transform">
+                <img src="/sb1.png" alt="Logo" className="h-8 sm:h-10 object-contain" />
+              </div>
+              <h1 className="text-4xl font-black tracking-tight drop-shadow-md">Soundbook</h1>
+              <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center text-primary-600 animate-[spin_10s_linear_infinite] shrink-0 shadow-lg ml-1">
                 <Disc3 size={28} />
               </div>
-              <h1 className="text-4xl font-black tracking-tight">Soundbook</h1>
             </div>
             <h2 className="text-5xl font-bold leading-tight mb-6">{t('login.branding_tagline')}</h2>
             <p className="text-xl text-white/80 font-medium">{t('login.branding_desc')}</p>
@@ -131,9 +134,12 @@ const Login = () => {
         <div className="flex-1 flex items-center justify-center p-8 sm:p-12 lg:p-24 relative">
           <div className="w-full max-sm relative z-10">
             <div className="mb-10 text-center md:text-left">
-              <div className="md:hidden flex items-center justify-center gap-2 mb-6 text-primary-500">
-                <Disc3 size={32} className="animate-[spin_10s_linear_infinite]" />
+              <div className="md:hidden flex flex-wrap items-center justify-center gap-3 mb-6 text-primary-500">
+                <div className="bg-white/90 p-1.5 rounded-xl shadow-md border border-gray-100 dark:border-gray-800">
+                  <img src="/sb1.png" alt="Logo" className="h-7 object-contain" />
+                </div>
                 <span className="text-2xl font-black">Soundbook</span>
+                <Disc3 size={32} className="animate-[spin_10s_linear_infinite] shrink-0 drop-shadow-sm ml-1" />
               </div>
               <h2 className="text-3xl font-bold tracking-tight mb-2">
                 {isLogin ? t('login.welcome_back') : t('login.create_account')}
