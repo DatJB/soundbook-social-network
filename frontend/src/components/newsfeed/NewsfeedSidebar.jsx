@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Check, Clock, MessageCircle, Music, Book, UserPlus, X } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
+import { useToast } from '../../context/ToastContext';
 import { friendsApi } from '../../services/friends';
 
 const Avatar = ({ user, size = 'w-10 h-10' }) => {
@@ -15,10 +16,15 @@ const Avatar = ({ user, size = 'w-10 h-10' }) => {
 const NewsfeedSidebar = ({ suggestions = [], trending = [], requests = [], onRefreshRequests }) => {
   const { t } = useLanguage();
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const [statuses, setStatuses] = useState({});
   const [busyUserId, setBusyUserId] = useState(null);
 
   const resolveStatus = (user) => statuses[user.id]?.friendshipStatus || user.friendshipStatus || 'NONE';
+  const displaySuggestions = suggestions.filter(user => {
+    const status = resolveStatus(user);
+    return !status || status === 'NONE';
+  });
 
   const handleAddFriend = async (user) => {
     try {
@@ -34,7 +40,10 @@ const NewsfeedSidebar = ({ suggestions = [], trending = [], requests = [], onRef
     try {
       setBusyUserId(`req-${requestId}`);
       await friendsApi.acceptRequest(requestId);
+      showToast('Đã chấp nhận lời mời kết bạn', 'success');
       onRefreshRequests?.();
+    } catch (err) {
+      showToast(err?.message || 'Lỗi khi chấp nhận lời mời', 'error');
     } finally {
       setBusyUserId(null);
     }
@@ -44,7 +53,10 @@ const NewsfeedSidebar = ({ suggestions = [], trending = [], requests = [], onRef
     try {
       setBusyUserId(`req-${requestId}`);
       await friendsApi.declineRequest(requestId);
+      showToast('Đã từ chối lời mời kết bạn', 'success');
       onRefreshRequests?.();
+    } catch (err) {
+      showToast(err?.message || 'Lỗi khi từ chối lời mời', 'error');
     } finally {
       setBusyUserId(null);
     }
@@ -91,7 +103,7 @@ const NewsfeedSidebar = ({ suggestions = [], trending = [], requests = [], onRef
       <div className="bg-surface-color rounded-2xl p-5 shadow-sm border border-gray-200 dark:border-gray-800">
         <h3 className="font-bold text-sm mb-4 uppercase tracking-wider text-text-muted">{t('feed.friend_suggestions')}</h3>
         <div className="space-y-4">
-          {suggestions.length ? suggestions.map(user => (
+          {displaySuggestions.length ? displaySuggestions.map(user => (
             <div key={user.id} className="flex items-center justify-between gap-2 group">
               <Link to={`/profile/${user.id}`} className="flex min-w-0 items-center gap-3">
                 <Avatar user={user} />

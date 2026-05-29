@@ -132,7 +132,7 @@ const CommentItem = ({ comment, postOwnerId, onDelete, onReply, postId }) => {
     setReactCount(comment.reacts || 0);
     // Only reset react state from props when switching to a different comment
     setReact(comment.currentUserReaction?.toUpperCase() || null);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [comment.id]);
 
   // Sync reactCount (only) when the server pushes a new total via socket
@@ -144,10 +144,10 @@ const CommentItem = ({ comment, postOwnerId, onDelete, onReply, postId }) => {
   useEffect(() => {
     const reactorTypes = (comment.reactors || []).map(r => r.reactionType?.toUpperCase());
     const myType = String(react || '').toUpperCase();
-    
+
     // Combine them and remove nulls/empty
     const combinedTypes = [...new Set([...reactorTypes, myType])].filter(Boolean);
-    
+
     if (combinedTypes.length > 0) {
       const objects = REACTS.filter(r => combinedTypes.includes(r.api)).slice(0, 3);
       setTopReacts(objects);
@@ -180,12 +180,12 @@ const CommentItem = ({ comment, postOwnerId, onDelete, onReply, postId }) => {
   const handleReact = async (rawType) => {
     const type = rawType.toUpperCase();
     const isRemoving = react === type;
-    
+
     // Optimistic update
     setReact(isRemoving ? null : type);
     setReactCount(c => isRemoving ? c - 1 : (react ? c : c + 1));
     setShowReacts(false);
-    
+
     try {
       await interactionsApi.reactToComment(comment.id, type);
       // The socket will eventually broadcast the total count update
@@ -224,10 +224,10 @@ const CommentItem = ({ comment, postOwnerId, onDelete, onReply, postId }) => {
     <div className="flex items-start gap-2.5 group/comment">
       <Link to={`/profile/${comment.user.id}`} className="flex-shrink-0 transition-transform active:scale-95">
         {comment.user.avatarUrl ? (
-          <img 
-            src={`${resolveUrl(comment.user.avatarUrl)}${String(comment.user.avatarUrl).includes('?') ? '&' : '?'}t=${comment.original?.user?.updatedAt || Date.now()}`} 
-            alt={comment.user.name} 
-            className="h-7 w-7 rounded-full object-cover" 
+          <img
+            src={`${resolveUrl(comment.user.avatarUrl)}${String(comment.user.avatarUrl).includes('?') ? '&' : '?'}t=${comment.original?.user?.updatedAt || Date.now()}`}
+            alt={comment.user.name}
+            className="h-7 w-7 rounded-full object-cover"
           />
         ) : (
           <div className={`w-7 h-7 rounded-full ${comment.user.avatar} flex items-center justify-center text-[10px] font-bold text-white`}>{(comment.user.name || 'U').charAt(0).toUpperCase()}</div>
@@ -373,10 +373,10 @@ const CommentItem = ({ comment, postOwnerId, onDelete, onReply, postId }) => {
           <div className="flex items-center gap-2 mt-2">
             <div className="w-6 h-6 rounded-full bg-primary-500 text-white flex items-center justify-center font-bold text-[8px] overflow-hidden flex-shrink-0">
               {currentUser?.avatarUrl ? (
-                <img 
-                  src={`${resolveUrl(currentUser.avatarUrl)}${String(currentUser.avatarUrl).includes('?') ? '&' : '?'}t=${currentUser.updatedAt || 'initial'}`} 
-                  alt={currentUser.displayName || 'User'} 
-                  className="w-full h-full object-cover" 
+                <img
+                  src={`${resolveUrl(currentUser.avatarUrl)}${String(currentUser.avatarUrl).includes('?') ? '&' : '?'}t=${currentUser.updatedAt || 'initial'}`}
+                  alt={currentUser.displayName || 'User'}
+                  className="w-full h-full object-cover"
                 />
               ) : (
                 <span>{(currentUser?.displayName || 'U').charAt(0).toUpperCase()}</span>
@@ -393,10 +393,10 @@ const CommentItem = ({ comment, postOwnerId, onDelete, onReply, postId }) => {
                 placeholder={t('comment.reply_placeholder').replace('{name}', comment.user.name)}
                 className="flex-1 bg-transparent text-xs outline-none text-text-color placeholder:text-text-muted"
               />
-              
+
               <div className="relative">
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={() => setShowEmojiPicker(!showEmojiPicker)}
                   className={`transition-colors shrink-0 ${showEmojiPicker ? 'text-primary-500' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}
                 >
@@ -405,21 +405,21 @@ const CommentItem = ({ comment, postOwnerId, onDelete, onReply, postId }) => {
 
                 {showEmojiPicker && (
                   <>
-                    <div 
-                      className="fixed inset-0 z-10" 
+                    <div
+                      className="fixed inset-0 z-10"
                       onClick={() => setShowEmojiPicker(false)}
                     />
                     <div className="absolute bottom-full right-0 mb-3 z-[70] shadow-2xl rounded-2xl overflow-hidden border border-gray-100 dark:border-gray-800 animate-in fade-in zoom-in-95 duration-200">
-                      <EmojiPicker 
+                      <EmojiPicker
                         onEmojiClick={(emojiObject) => {
                           setReplyText(prev => prev + emojiObject.emoji);
                           replyInputRef.current?.focus();
                         }}
                         theme={theme === 'dark' ? 'dark' : 'light'}
                         lazyLoadEmojis={true}
-                        searchDisabled={true}
-                        skinTonesDisabled={true}
-                        height={350}
+                        searchDisabled={false}
+                        skinTonesDisabled={false}
+                        height={400}
                       />
                     </div>
                   </>
@@ -440,7 +440,7 @@ const CommentItem = ({ comment, postOwnerId, onDelete, onReply, postId }) => {
         {/* View Replies Button */}
         {comment.replyCount > 0 && !showReplies && (
           <div className="ml-8 mt-2">
-            <button 
+            <button
               onClick={fetchReplies}
               className="flex items-center gap-2 text-[11px] font-bold text-primary-500 hover:text-primary-600 transition-colors py-1"
             >
@@ -459,17 +459,17 @@ const CommentItem = ({ comment, postOwnerId, onDelete, onReply, postId }) => {
           <div className="ml-8 mt-3 space-y-3 border-l-2 border-gray-100 dark:border-gray-800 pl-4">
             {replies.length === 0 && <p className="text-[10px] text-text-muted italic">Đang tải hoặc không có phản hồi...</p>}
             {replies.map(reply => (
-              <CommentItem 
-                key={reply.id} 
+              <CommentItem
+                key={reply.id}
                 postId={postId}
-                comment={reply} 
-                postOwnerId={postOwnerId} 
+                comment={reply}
+                postOwnerId={postOwnerId}
                 onDelete={onDelete}
                 onReply={onReply}
               />
             ))}
             {/* Option to hide */}
-            <button 
+            <button
               onClick={() => setShowReplies(false)}
               className="text-[10px] font-bold text-text-muted hover:text-primary-500 transition-colors"
             >

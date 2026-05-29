@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Check, Clock, MessageCircle, Search, UserPlus, X, Flag } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
+import { useToast } from '../context/ToastContext';
 import { friendsApi } from '../services/friends';
 import { profileApi } from '../services/profile';
 import { getCurrentUser } from '../services/auth';
@@ -21,6 +22,7 @@ const FriendsPage = () => {
   const { id } = useParams();
   const { t } = useLanguage();
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const [search, setSearch] = useState('');
   const [tab, setTab] = useState('friends');
   const [data, setData] = useState({ friends: [], incomingRequests: [], outgoingRequests: [], suggestions: [] });
@@ -38,11 +40,15 @@ const FriendsPage = () => {
 
       if (isMe) {
         const hub = await friendsApi.getFriendHub();
+        const friends = hub?.friends || [];
+        const friendIds = new Set(friends.map(f => f.userId || f.id));
+        const suggestions = (hub?.suggestions || []).filter(s => !friendIds.has(s.userId || s.id) && (!s.friendshipStatus || s.friendshipStatus === 'NONE'));
+        
         setData({
-          friends: hub?.friends || [],
+          friends: friends,
           incomingRequests: hub?.incomingRequests || [],
           outgoingRequests: hub?.outgoingRequests || [],
-          suggestions: hub?.suggestions || [],
+          suggestions: suggestions,
         });
       } else {
         const otherFriends = await profileApi.getFriends(id);
@@ -74,11 +80,14 @@ const FriendsPage = () => {
     return (lists[tab] || []).filter(friend => !keyword || String(friend.displayName || '').toLowerCase().includes(keyword) || String(friend.username || '').toLowerCase().includes(keyword));
   }, [data.friends, data.incomingRequests, data.outgoingRequests, data.suggestions, tab, search]);
 
-  const runAction = async (key, action) => {
+  const runAction = async (key, action, successMessage) => {
     try {
       setBusyKey(key);
       await action();
+      if (successMessage) showToast(successMessage, 'success');
       await load();
+    } catch (err) {
+      showToast(err?.message || 'Có lỗi xảy ra', 'error');
     } finally {
       setBusyKey('');
     }
@@ -102,8 +111,8 @@ const FriendsPage = () => {
     if (tab === 'incoming') {
       return (
         <div className="flex gap-2">
-          <button onClick={() => runAction(`accept-${friend.requestId}`, () => friendsApi.acceptRequest(friend.requestId))} disabled={busyKey === `accept-${friend.requestId}`} className="p-2 rounded-full text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20"><Check size={18} /></button>
-          <button onClick={() => runAction(`decline-${friend.requestId}`, () => friendsApi.declineRequest(friend.requestId))} disabled={busyKey === `decline-${friend.requestId}`} className="p-2 rounded-full text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"><X size={18} /></button>
+          <button onClick={() => runAction(`accept-${friend.requestId}`, () => friendsApi.acceptRequest(friend.requestId), 'Đã chấp nhận lời mời kết bạn')} disabled={busyKey === `accept-${friend.requestId}`} className="p-2 rounded-full text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20"><Check size={18} /></button>
+          <button onClick={() => runAction(`decline-${friend.requestId}`, () => friendsApi.declineRequest(friend.requestId), 'Đã từ chối lời mời kết bạn')} disabled={busyKey === `decline-${friend.requestId}`} className="p-2 rounded-full text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"><X size={18} /></button>
         </div>
       );
     }
@@ -111,7 +120,7 @@ const FriendsPage = () => {
       return <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"><Clock size={13} /> Đang chờ</span>;
     }
     return (
-      <button onClick={() => runAction(`add-${friend.userId}`, () => friendsApi.sendRequest(friend.userId))} disabled={busyKey === `add-${friend.userId}`} className="inline-flex items-center gap-1.5 rounded-lg bg-primary-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary-600 disabled:opacity-60"><UserPlus size={15} /> Kết bạn</button>
+      <button onClick={() => runAction(`add-${friend.userId}`, () => friendsApi.sendRequest(friend.userId), 'Đã gửi lời mời kết bạn')} disabled={busyKey === `add-${friend.userId}`} className="inline-flex items-center gap-1.5 rounded-lg bg-primary-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary-600 disabled:opacity-60"><UserPlus size={15} /> Kết bạn</button>
     );
   };
 

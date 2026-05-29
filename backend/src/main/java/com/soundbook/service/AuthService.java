@@ -176,8 +176,10 @@ public class AuthService {
 
             return generateAuthResponse(user);
         } catch (AppException exception) {
+            exception.printStackTrace();
             throw exception;
         } catch (Exception exception) {
+            exception.printStackTrace();
             throw new AppException(ErrorCode.UNAUTHENTICATED);
         }
     }

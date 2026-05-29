@@ -46,10 +46,10 @@ const ChatWindow = ({
             <div className="flex items-center gap-3">
               <Link to={`/profile/${activeData.userId}`} className="relative hover:opacity-80 transition-opacity">
                 {activeData.avatarUrl ? (
-                  <img 
-                    src={activeData.avatarUrl} 
-                    alt={activeData.name} 
-                    className={`w-10 h-10 rounded-full ${activeData.type === 'group' && 'rounded-xl'} object-cover shadow-sm`} 
+                  <img
+                    src={activeData.avatarUrl}
+                    alt={activeData.name}
+                    className={`w-10 h-10 rounded-full ${activeData.type === 'group' && 'rounded-xl'} object-cover shadow-sm`}
                   />
                 ) : (
                   <div className={`w-10 h-10 rounded-full ${activeData.avatar} ${activeData.type === 'group' && 'rounded-xl'} flex items-center justify-center text-white font-bold shadow-sm`}>
@@ -71,7 +71,7 @@ const ChatWindow = ({
               )}
               <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"><Info size={18} /></button>
               <div className="relative">
-                <button 
+                <button
                   onClick={() => setShowMenu(m => !m)}
                   className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
                 >
@@ -79,7 +79,7 @@ const ChatWindow = ({
                 </button>
                 {showMenu && (
                   <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-100 dark:border-gray-700 p-1 z-50">
-                    <button 
+                    <button
                       onClick={() => { setShowMenu(false); setIsReportModalOpen(true); }}
                       className="flex items-center gap-2 w-full px-4 py-2 text-sm text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-lg transition-colors"
                     >
@@ -91,7 +91,7 @@ const ChatWindow = ({
             </div>
           </div>
 
-          <ReportModal 
+          <ReportModal
             isOpen={isReportModalOpen}
             onClose={() => setIsReportModalOpen(false)}
             type="USER"
@@ -134,28 +134,28 @@ const ChatWindow = ({
                 placeholder={`${t('chat.message_placeholder')} ${activeData.name}...`}
                 className="w-full bg-transparent border-none outline-none resize-none py-2 pl-3 text-sm text-text-color custom-scrollbar max-h-32"
               />
-              
+
               <div className="relative">
-                <button 
+                <button
                   onClick={() => setShowEmojiPicker(!showEmojiPicker)}
                   className={`p-2 transition-colors shrink-0 ${showEmojiPicker ? 'text-primary-500' : 'text-gray-500 hover:text-primary-500'}`}
                 >
                   <Smile size={20} />
                 </button>
-                
+
                 {showEmojiPicker && (
                   <>
                     <div className="fixed inset-0 z-[60]" onClick={() => setShowEmojiPicker(false)} />
                     <div className="absolute bottom-full right-0 mb-4 z-[70] shadow-2xl rounded-2xl overflow-hidden border border-gray-100 dark:border-gray-800 animate-in fade-in zoom-in-95 slide-in-from-bottom-2 duration-200">
-                      <EmojiPicker 
+                      <EmojiPicker
                         onEmojiClick={(emojiObject) => {
                           setDraftMessage(prev => prev + emojiObject.emoji);
                         }}
                         theme={theme === 'dark' ? 'dark' : 'light'}
                         lazyLoadEmojis={true}
-                        searchDisabled={true}
-                        skinTonesDisabled={true}
-                        height={350}
+                        searchDisabled={false}
+                        skinTonesDisabled={false}
+                        height={400}
                       />
                     </div>
                   </>

@@ -39,7 +39,7 @@ const PostComments = ({ postId, postOwnerId, comments = [], enabled = true, onSu
       onViewAll();
       return;
     }
-    
+
     if (!showAllComments && localComments.length < totalComments && postId) {
       try {
         setLoadingMore(true);
@@ -90,8 +90,8 @@ const PostComments = ({ postId, postOwnerId, comments = [], enabled = true, onSu
   return (
     <div className="mt-4 space-y-3">
       {displayCount > 2 && !showAllComments && (
-        <button 
-          onClick={handleShowAll} 
+        <button
+          onClick={handleShowAll}
           disabled={loadingMore}
           className="text-xs font-medium text-text-muted hover:text-primary-500 transition-colors flex items-center gap-2"
         >
@@ -103,11 +103,11 @@ const PostComments = ({ postId, postOwnerId, comments = [], enabled = true, onSu
       {rootComments.length > 0 && (
         <div className="space-y-3">
           {visibleComments.map(comment => (
-            <CommentItem 
-              key={comment.id} 
+            <CommentItem
+              key={comment.id}
               postId={postId}
-              comment={comment} 
-              postOwnerId={postOwnerId} 
+              comment={comment}
+              postOwnerId={postOwnerId}
               onDelete={onDeleteComment}
               onReply={(text) => onSubmitComment?.(text, comment.id)}
             />
@@ -131,10 +131,10 @@ const PostComments = ({ postId, postOwnerId, comments = [], enabled = true, onSu
         <div className="flex items-center gap-2 mt-2">
           <div className="w-7 h-7 rounded-full bg-primary-500 text-white flex items-center justify-center font-bold text-[10px] overflow-hidden flex-shrink-0">
             {currentUser?.avatarUrl ? (
-              <img 
-                src={`${resolveUrl(currentUser.avatarUrl)}${String(currentUser.avatarUrl).includes('?') ? '&' : '?'}t=${currentUser.updatedAt || 'initial'}`} 
-                alt={currentUser.displayName || 'User'} 
-                className="w-full h-full object-cover" 
+              <img
+                src={`${resolveUrl(currentUser.avatarUrl)}${String(currentUser.avatarUrl).includes('?') ? '&' : '?'}t=${currentUser.updatedAt || 'initial'}`}
+                alt={currentUser.displayName || 'User'}
+                className="w-full h-full object-cover"
               />
             ) : (
               <span>{(currentUser?.displayName || 'U').charAt(0).toUpperCase()}</span>
@@ -150,10 +150,10 @@ const PostComments = ({ postId, postOwnerId, comments = [], enabled = true, onSu
               placeholder={t('post.comment') + '...'}
               className="flex-1 bg-transparent text-xs outline-none text-text-color placeholder:text-text-muted"
             />
-            
+
             <div className="relative">
-              <button 
-                type="button" 
+              <button
+                type="button"
                 onClick={() => setShowEmojiPicker(!showEmojiPicker)}
                 className={`transition-colors shrink-0 ${showEmojiPicker ? 'text-primary-500' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}
               >
@@ -162,21 +162,21 @@ const PostComments = ({ postId, postOwnerId, comments = [], enabled = true, onSu
 
               {showEmojiPicker && (
                 <>
-                  <div 
-                    className="fixed inset-0 z-[60]" 
+                  <div
+                    className="fixed inset-0 z-[60]"
                     onClick={() => setShowEmojiPicker(false)}
                   />
                   <div className="absolute bottom-full right-0 mb-3 z-[70] shadow-2xl rounded-2xl overflow-hidden border border-gray-100 dark:border-gray-800 animate-in fade-in zoom-in-95 duration-200">
-                    <EmojiPicker 
+                    <EmojiPicker
                       onEmojiClick={(emojiObject) => {
                         setCommentInput(prev => prev + emojiObject.emoji);
                         inputRef.current?.focus();
                       }}
                       theme={theme === 'dark' ? 'dark' : 'light'}
                       lazyLoadEmojis={true}
-                      searchDisabled={true}
-                      skinTonesDisabled={true}
-                      height={350}
+                      searchDisabled={false}
+                      skinTonesDisabled={false}
+                      height={400}
                     />
                   </div>
                 </>

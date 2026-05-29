@@ -75,10 +75,11 @@ public class AiServiceImpl implements AiService
                 .generationConfig(config)
                 .build();
 
-        try {
+        try
+        {
             String responseJson = webClient.post()
                     .uri(uriBuilder -> uriBuilder
-                            .path("/gemini-2.5-flash:generateContent")
+                            .path("/gemini-2.5-flash-lite:generateContent")
                             .queryParam("key", apiKey)
                             .build())
                     .bodyValue(request)
@@ -96,9 +97,27 @@ public class AiServiceImpl implements AiService
                     .path("text")
                     .asText();
 
-        } catch (Exception e) {
-            log.error("Lỗi khi gọi API Gemini: ", e);
-            return "AI Soundbook đang bận suy nghĩ về một bản nhạc hay hơn. Thử lại sau nhé!";
+        } catch (Exception e)
+        {
+            Throwable rootCause = e;
+            while (rootCause.getCause() != null && !(rootCause instanceof org.springframework.web.reactive.function.client.WebClientResponseException))
+            {
+                rootCause = rootCause.getCause();
+            }
+
+            if (rootCause instanceof org.springframework.web.reactive.function.client.WebClientResponseException)
+            {
+                var webClientEx = (org.springframework.web.reactive.function.client.WebClientResponseException) rootCause;
+
+                log.error("GOOGLE API BÁO LỖI: Mã = {}, Chi tiết = {}",
+                        webClientEx.getStatusCode(),
+                        webClientEx.getResponseBodyAsString());
+
+                return "AI Soundbook đang bảo trì hệ thống. Thử lại sau nhé!";
+            }
+
+            log.error("LỖI HỆ THỐNG KHÔNG XÁC ĐỊNH: ", e);
+            return "AI Soundbook đang bảo trì hệ thống. Thử lại sau nhé!";
         }
     }
 
@@ -109,11 +128,12 @@ public class AiServiceImpl implements AiService
                 : "Bài viết này không có đính kèm.";
 
         return String.format(
-                "Bạn là trợ lý AI của Soundbook. Bài viết thuộc loại: %s. " +
+                "Bạn là trợ lý AI của Soundbook (Mạng xã hội tích hợp âm nhạc và sách). Bài viết thuộc loại: %s. " +
                         "Nội dung: %s. Thông tin đính kèm (Sách/Nhạc): %s. " +
                         "Hãy: 1. Tóm tắt sáng tạo (đổi phong cách mỗi lần). " +
                         "2. Gợi ý 2 link liên quan (Tiki/Spotify/Youtube/Wiki). " +
-                        "3. Chào mời người dùng chat về nội dung này.",
+                        "3. Chào mời người dùng chat về nội dung này." +
+                        "Ghi ra các mục cho tinh tế 1 chút. Bạn là Soundbook AI mà.",
                 post.getType(), post.getCaption(), refContext
         );
     }

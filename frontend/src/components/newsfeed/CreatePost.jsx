@@ -80,7 +80,7 @@ const CreatePost = ({ onCreated }) => {
     setExpanded(true);
     setError('');
     setActiveTab(type);
-    
+
     // Clear other selections
     setSelectedFile(null);
     setFilePreview(null);
@@ -224,19 +224,17 @@ const CreatePost = ({ onCreated }) => {
           setBusy(false);
           return;
         }
-        
-        // If it's a JSON type but we have a manual upload (not from search)
+
         const metadata = form.metadata || {
           type: 'manual',
           title: 'Bài viết Soundbook',
           thumbnail: finalMediaUrl,
           url: finalMediaUrl
         };
-        
+
         payload.refJson = JSON.stringify(metadata);
       }
-      
-      // Always include media info if present
+
       if (finalMediaUrl) {
         payload.mediaUrl = finalMediaUrl;
         payload.mediaType = form.mediaType === 'VIDEO' ? 'VIDEO' : 'IMAGE';
@@ -397,25 +395,25 @@ const CreatePost = ({ onCreated }) => {
       <div className="flex justify-between items-center">
         <div className="flex gap-1 sm:gap-2">
           <input type="file" id="post-file-input" className="hidden" accept="image/*,video/*" onChange={handleFileChange} />
-          <button 
-            type="button" 
-            onClick={() => handleTypeSelect('IMAGE')} 
+          <button
+            type="button"
+            onClick={() => handleTypeSelect('IMAGE')}
             className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all cursor-pointer ${activeTab === 'IMAGE' ? 'bg-green-500/10 ring-1 ring-green-500/30' : 'text-text-muted hover:bg-gray-100 dark:hover:bg-gray-800'}`}
           >
             <Image size={18} className={activeTab === 'IMAGE' ? 'text-green-600' : 'text-green-500'} />
             <span className={`text-sm font-bold hidden sm:block ${activeTab === 'IMAGE' ? 'text-green-600' : ''}`}>Ảnh/Video</span>
           </button>
-          <button 
-            type="button" 
-            onClick={() => handleTypeSelect('MUSIC')} 
+          <button
+            type="button"
+            onClick={() => handleTypeSelect('MUSIC')}
             className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all cursor-pointer ${activeTab === 'MUSIC' ? 'bg-purple-500/10 ring-1 ring-purple-500/30' : 'text-text-muted hover:bg-gray-100 dark:hover:bg-gray-800'}`}
           >
             <Music size={18} className={activeTab === 'MUSIC' ? 'text-purple-600' : 'text-purple-500'} />
             <span className={`text-sm font-bold hidden sm:block ${activeTab === 'MUSIC' ? 'text-purple-600' : ''}`}>Nhạc</span>
           </button>
-          <button 
-            type="button" 
-            onClick={() => handleTypeSelect('BOOK')} 
+          <button
+            type="button"
+            onClick={() => handleTypeSelect('BOOK')}
             className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all cursor-pointer ${activeTab === 'BOOK' ? 'bg-orange-500/10 ring-1 ring-orange-500/30' : 'text-text-muted hover:bg-gray-100 dark:hover:bg-gray-800'}`}
           >
             <Book size={18} className={activeTab === 'BOOK' ? 'text-orange-600' : 'text-orange-500'} />
@@ -424,9 +422,9 @@ const CreatePost = ({ onCreated }) => {
 
           {/* Emoji Picker */}
           <div className="relative">
-            <button 
-              type="button" 
-              onClick={() => setShowEmojiPicker(!showEmojiPicker)} 
+            <button
+              type="button"
+              onClick={() => setShowEmojiPicker(!showEmojiPicker)}
               className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all cursor-pointer ${showEmojiPicker ? 'bg-yellow-500/10 ring-1 ring-yellow-500/30 text-yellow-600' : 'text-text-muted hover:bg-gray-100 dark:hover:bg-gray-800'}`}
             >
               <Smile size={18} className={showEmojiPicker ? 'text-yellow-600' : 'text-yellow-500'} />
@@ -437,15 +435,15 @@ const CreatePost = ({ onCreated }) => {
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setShowEmojiPicker(false)} />
                 <div className="absolute top-full left-0 mt-3 z-20 shadow-2xl rounded-2xl overflow-hidden border border-gray-100 dark:border-gray-800 animate-in fade-in zoom-in-95 duration-200">
-                  <EmojiPicker 
+                  <EmojiPicker
                     onEmojiClick={(emojiObject) => {
                       setForm(prev => ({ ...prev, caption: prev.caption + emojiObject.emoji }));
                     }}
                     theme={theme === 'dark' ? 'dark' : 'light'}
                     lazyLoadEmojis={true}
-                    searchDisabled={true}
-                    skinTonesDisabled={true}
-                    height={350}
+                    searchDisabled={false}
+                    skinTonesDisabled={false}
+                    height={400}
                   />
                 </div>
               </>

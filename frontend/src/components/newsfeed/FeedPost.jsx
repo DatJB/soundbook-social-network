@@ -111,7 +111,7 @@ const FeedPost = ({ post, isPlaying, onTogglePlay, onChanged, onDeleted, onShare
     const apiType = String(reactionType).toUpperCase();
     await runAction(async () => {
       await interactionsApi.reactToPost(livePost.id, apiType);
-      
+
       // Since interactionsApi returns void, we refresh the post info to get new counts
       // We can use postsApi.getPostById which we just added
       const updated = await postsApi.getPostById(livePost.id);
@@ -342,8 +342,8 @@ const FeedPost = ({ post, isPlaying, onTogglePlay, onChanged, onDeleted, onShare
         </div>
       ) : null}
 
-      <div 
-        className="cursor-pointer group/post" 
+      <div
+        className="cursor-pointer group/post"
         onClick={(e) => {
           // Don't open if clicking on a link or button inside (though there are few here)
           if (e.target.closest('button, a')) return;
@@ -377,7 +377,7 @@ const FeedPost = ({ post, isPlaying, onTogglePlay, onChanged, onDeleted, onShare
                   </div>
                 </Link>
               </div>
-              
+
               {livePost.sharedPost.caption && (
                 <p className="text-xs mb-3 line-clamp-3 leading-relaxed text-text-color">
                   {livePost.sharedPost.caption}
@@ -385,7 +385,7 @@ const FeedPost = ({ post, isPlaying, onTogglePlay, onChanged, onDeleted, onShare
               )}
 
               {livePost.sharedPost.thumbnail && (
-                <PostMediaCard 
+                <PostMediaCard
                   post={{
                     type: livePost.sharedPost.type,
                     media: {
@@ -396,8 +396,8 @@ const FeedPost = ({ post, isPlaying, onTogglePlay, onChanged, onDeleted, onShare
                       author: livePost.sharedPost.artist,
                       // Only provide video ID if it's actually a YouTube reference
                       id: livePost.sharedPost.metadataType === 'youtube' ? livePost.sharedPost.videoId : null,
-                      ref: { 
-                        id: livePost.sharedPost.metadataType === 'youtube' ? livePost.sharedPost.videoId : null 
+                      ref: {
+                        id: livePost.sharedPost.metadataType === 'youtube' ? livePost.sharedPost.videoId : null
                       }
                     }
                   }}
@@ -424,8 +424,8 @@ const FeedPost = ({ post, isPlaying, onTogglePlay, onChanged, onDeleted, onShare
         footer={(
           <>
             <div className="flex-1 flex justify-start relative">
-              <button 
-                type="button" 
+              <button
+                type="button"
                 onClick={() => setShowEmojiPickerShare(!showEmojiPickerShare)}
                 className={`p-2 rounded-lg transition-colors ${showEmojiPickerShare ? 'bg-yellow-500/10 text-yellow-600' : 'text-text-muted hover:bg-gray-100 dark:hover:bg-gray-800'}`}
               >
@@ -435,7 +435,7 @@ const FeedPost = ({ post, isPlaying, onTogglePlay, onChanged, onDeleted, onShare
                 <>
                   <div className="fixed inset-0 z-[110]" onClick={() => setShowEmojiPickerShare(false)} />
                   <div className="absolute bottom-full left-0 mb-2 z-[120] shadow-2xl rounded-2xl overflow-hidden border border-gray-100 dark:border-gray-800 animate-in fade-in zoom-in-95 duration-200">
-                    <EmojiPicker 
+                    <EmojiPicker
                       onEmojiClick={(emojiObject) => {
                         setShareForm(prev => ({ ...prev, caption: prev.caption + emojiObject.emoji }));
                         setShowEmojiPickerShare(false);
@@ -519,8 +519,8 @@ const FeedPost = ({ post, isPlaying, onTogglePlay, onChanged, onDeleted, onShare
                 <span className="text-xs font-bold truncate max-w-[100px]">{livePost.user?.name}</span>
               </div>
               <div className="h-6 w-[1px] bg-gray-200 dark:bg-gray-700 mx-1" />
-              <button 
-                type="button" 
+              <button
+                type="button"
                 onClick={() => setShowEmojiPickerEdit(!showEmojiPickerEdit)}
                 className={`p-2 rounded-lg transition-colors ${showEmojiPickerEdit ? 'bg-yellow-500/10 text-yellow-600' : 'text-text-muted hover:bg-gray-100 dark:hover:bg-gray-800'}`}
               >
@@ -530,16 +530,16 @@ const FeedPost = ({ post, isPlaying, onTogglePlay, onChanged, onDeleted, onShare
                 <>
                   <div className="fixed inset-0 z-[110]" onClick={() => setShowEmojiPickerEdit(false)} />
                   <div className="absolute bottom-full left-0 mb-2 z-[120] shadow-2xl rounded-2xl overflow-hidden border border-gray-100 dark:border-gray-800 animate-in fade-in zoom-in-95 duration-200">
-                    <EmojiPicker 
+                    <EmojiPicker
                       onEmojiClick={(emojiObject) => {
                         setEditForm(prev => ({ ...prev, caption: prev.caption + emojiObject.emoji }));
                         setShowEmojiPickerEdit(false);
                       }}
                       theme={theme === 'dark' ? 'dark' : 'light'}
                       lazyLoadEmojis={true}
-                      searchDisabled={true}
-                      skinTonesDisabled={true}
-                      height={350}
+                      searchDisabled={false}
+                      skinTonesDisabled={false}
+                      height={400}
                     />
                   </div>
                 </>
@@ -553,11 +553,11 @@ const FeedPost = ({ post, isPlaying, onTogglePlay, onChanged, onDeleted, onShare
         <div className="space-y-4">
           <div className="space-y-1">
             <label className="text-[10px] font-bold uppercase tracking-wider text-text-muted ml-1">Nội dung bài viết</label>
-            <textarea 
-              value={editForm.caption} 
-              onChange={(event) => setEditForm(prev => ({ ...prev, caption: event.target.value }))} 
-              rows={5} 
-              className="w-full resize-none rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none focus:border-primary-500 dark:border-gray-700 dark:bg-gray-900 transition-all" 
+            <textarea
+              value={editForm.caption}
+              onChange={(event) => setEditForm(prev => ({ ...prev, caption: event.target.value }))}
+              rows={5}
+              className="w-full resize-none rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none focus:border-primary-500 dark:border-gray-700 dark:bg-gray-900 transition-all"
               placeholder="Bạn đang nghĩ gì?"
             />
           </div>
@@ -565,9 +565,9 @@ const FeedPost = ({ post, isPlaying, onTogglePlay, onChanged, onDeleted, onShare
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-1">
               <label className="text-[10px] font-bold uppercase tracking-wider text-text-muted ml-1">Quyền riêng tư</label>
-              <select 
-                value={editForm.visibility} 
-                onChange={(event) => setEditForm(prev => ({ ...prev, visibility: event.target.value }))} 
+              <select
+                value={editForm.visibility}
+                onChange={(event) => setEditForm(prev => ({ ...prev, visibility: event.target.value }))}
                 className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm outline-none focus:border-primary-500 dark:border-gray-700 dark:bg-gray-900 transition-all"
               >
                 <option value="PUBLIC">Công khai</option>
@@ -577,11 +577,11 @@ const FeedPost = ({ post, isPlaying, onTogglePlay, onChanged, onDeleted, onShare
             </div>
             <div className="space-y-1">
               <label className="text-[10px] font-bold uppercase tracking-wider text-text-muted ml-1">Tâm trạng / Thẻ</label>
-              <input 
-                value={editForm.moodTag} 
-                onChange={(event) => setEditForm(prev => ({ ...prev, moodTag: event.target.value }))} 
-                placeholder="Mood/tag" 
-                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm outline-none focus:border-primary-500 dark:border-gray-700 dark:bg-gray-900 transition-all" 
+              <input
+                value={editForm.moodTag}
+                onChange={(event) => setEditForm(prev => ({ ...prev, moodTag: event.target.value }))}
+                placeholder="Mood/tag"
+                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm outline-none focus:border-primary-500 dark:border-gray-700 dark:bg-gray-900 transition-all"
               />
             </div>
           </div>
@@ -594,16 +594,16 @@ const FeedPost = ({ post, isPlaying, onTogglePlay, onChanged, onDeleted, onShare
                 <span className="hidden sm:inline">Ảnh / Video</span>
                 <input type="file" className="hidden" accept="image/*,video/*" onChange={handleFileChange} />
               </label>
-              <button 
-                type="button" 
+              <button
+                type="button"
                 onClick={() => setSearchType(searchType === 'MUSIC' ? null : 'MUSIC')}
                 className={`flex flex-1 items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-bold transition-all ${searchType === 'MUSIC' ? 'border-primary-500 bg-primary-50 text-primary-600' : 'border-gray-200 bg-gray-50 text-text-muted hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-900'}`}
               >
                 <Music size={18} className="text-blue-500" />
                 <span className="hidden sm:inline">Nhạc</span>
               </button>
-              <button 
-                type="button" 
+              <button
+                type="button"
                 onClick={() => setSearchType(searchType === 'BOOK' ? null : 'BOOK')}
                 className={`flex flex-1 items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-bold transition-all ${searchType === 'BOOK' ? 'border-primary-500 bg-primary-50 text-primary-600' : 'border-gray-200 bg-gray-50 text-text-muted hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-900'}`}
               >
@@ -627,7 +627,7 @@ const FeedPost = ({ post, isPlaying, onTogglePlay, onChanged, onDeleted, onShare
                 />
                 {searching && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-primary-500" size={16} />}
               </div>
-              
+
               {results.length > 0 && (
                 <div className="max-h-60 overflow-y-auto rounded-xl border border-gray-100 bg-white shadow-lg dark:border-gray-800 dark:bg-gray-950 custom-scrollbar">
                   {results.map((item, idx) => (
@@ -637,10 +637,10 @@ const FeedPost = ({ post, isPlaying, onTogglePlay, onChanged, onDeleted, onShare
                       onClick={() => selectMedia(item)}
                       className="flex w-full items-center gap-3 p-2 text-left hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors border-b border-gray-50 dark:border-gray-900 last:border-0"
                     >
-                      <img 
-                        src={item.snippet?.thumbnails?.default?.url || item.thumbnail || 'https://via.placeholder.com/40'} 
-                        className="h-10 w-10 rounded-lg object-cover bg-gray-100" 
-                        alt="" 
+                      <img
+                        src={item.snippet?.thumbnails?.default?.url || item.thumbnail || 'https://via.placeholder.com/40'}
+                        className="h-10 w-10 rounded-lg object-cover bg-gray-100"
+                        alt=""
                       />
                       <div className="flex-1 min-w-0">
                         <div className="truncate text-sm font-bold">{item.snippet?.title || item.title}</div>
@@ -663,8 +663,8 @@ const FeedPost = ({ post, isPlaying, onTogglePlay, onChanged, onDeleted, onShare
                     <div className="text-sm font-bold truncate">{editForm.metadata.title}</div>
                     <div className="text-xs text-text-muted truncate">{editForm.metadata.subtitle || editForm.metadata.artist}</div>
                   </div>
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     onClick={() => setEditForm(prev => ({ ...prev, mediaUrl: '', metadata: null }))}
                     className="p-2 text-text-muted hover:text-red-500 transition-colors"
                   >
@@ -678,8 +678,8 @@ const FeedPost = ({ post, isPlaying, onTogglePlay, onChanged, onDeleted, onShare
                   ) : (
                     <img src={filePreview || editForm.mediaUrl} className="w-full max-h-60 object-contain" alt="Preview" />
                   )}
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     onClick={() => {
                       setSelectedFile(null);
                       setFilePreview(null);
@@ -695,12 +695,12 @@ const FeedPost = ({ post, isPlaying, onTogglePlay, onChanged, onDeleted, onShare
           )}
 
           <label className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-            <input 
-              type="checkbox" 
-              checked={editForm.commentsEnabled} 
-              onChange={(event) => setEditForm(prev => ({ ...prev, commentsEnabled: event.target.checked }))} 
+            <input
+              type="checkbox"
+              checked={editForm.commentsEnabled}
+              onChange={(event) => setEditForm(prev => ({ ...prev, commentsEnabled: event.target.checked }))}
               className="w-4 h-4 rounded text-primary-500 focus:ring-primary-500"
-            /> 
+            />
             <span className="text-sm font-medium">Cho phép mọi người bình luận</span>
           </label>
         </div>

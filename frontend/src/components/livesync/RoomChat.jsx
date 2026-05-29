@@ -33,10 +33,10 @@ const RoomChat = ({ chatMessages, chatInput, setChatInput, onSendMessage, isSend
               <div key={msg.id} className="flex gap-3">
                 <div className="w-8 h-8 flex-shrink-0 rounded-full bg-primary-500 text-white flex items-center justify-center font-bold text-[10px] overflow-hidden">
                   {msg.avatar ? (
-                    <img 
-                      src={resolveUrl(msg.avatar)} 
-                      alt={msg.user} 
-                      className="w-full h-full object-cover" 
+                    <img
+                      src={resolveUrl(msg.avatar)}
+                      alt={msg.user}
+                      className="w-full h-full object-cover"
                     />
                   ) : (
                     <span>{(msg.user || 'U').charAt(0).toUpperCase()}</span>
@@ -89,13 +89,13 @@ const RoomChat = ({ chatMessages, chatInput, setChatInput, onSendMessage, isSend
             <>
               <div className="fixed inset-0 z-[60]" onClick={() => setShowEmojiPicker(false)} />
               <div className="absolute bottom-full right-0 mb-2 z-[70] shadow-2xl rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-700 animate-in slide-in-from-bottom-2">
-                <EmojiPicker 
+                <EmojiPicker
                   onEmojiClick={onEmojiClick}
                   theme={theme === 'dark' ? 'dark' : 'light'}
                   lazyLoadEmojis={true}
-                  searchDisabled={true}
-                  skinTonesDisabled={true}
-                  height={350}
+                  searchDisabled={false}
+                  skinTonesDisabled={false}
+                  height={400}
                 />
               </div>
             </>

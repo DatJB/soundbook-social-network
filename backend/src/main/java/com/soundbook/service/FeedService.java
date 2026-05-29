@@ -42,6 +42,8 @@ public class FeedService {
     private final CommentRepository commentRepository;
     private final ReactionRepository reactionRepository;
     private final FollowRepository followRepository;
+    private final FriendshipRepository friendshipRepository;
+    private final FriendRequestRepository friendRequestRepository;
     private final TasteDnaService tasteDnaService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -77,6 +79,9 @@ public class FeedService {
         List<MatchUserResponse> filteredSuggestions = matchSuggestions.stream()
                 .filter(match -> !followingIds.contains(match.getUserId()))
                 .filter(match -> !match.getUserId().equals(currentUser.getId()))
+                .filter(match -> !friendshipRepository.existsByIdUserIdAndIdFriendId(currentUser.getId(), match.getUserId()))
+                .filter(match -> friendRequestRepository.findFirstByRequester_IdAndReceiver_IdAndStatus(currentUser.getId(), match.getUserId(), com.soundbook.entity.enums.FriendRequestStatus.PENDING).isEmpty())
+                .filter(match -> friendRequestRepository.findFirstByRequester_IdAndReceiver_IdAndStatus(match.getUserId(), currentUser.getId(), com.soundbook.entity.enums.FriendRequestStatus.PENDING).isEmpty())
                 .limit(6)
                 .collect(Collectors.toList());
 
