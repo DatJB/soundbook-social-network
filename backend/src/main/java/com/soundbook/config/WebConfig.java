@@ -13,6 +13,8 @@ public class WebConfig implements WebMvcConfigurer {
             .allowedOriginPatterns(
                 "http://localhost:5173",
                 "http://127.0.0.1:5173",
+                "https://soundbook-social-network.vercel.app",
+                "https://*.vercel.app",
                 "https://*.trycloudflare.com",
                 "https://*.trycloudflare.net",
                 "https://*.ngrok-free.dev",
