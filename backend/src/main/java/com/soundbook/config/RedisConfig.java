@@ -1,5 +1,8 @@
 package com.soundbook.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.jsontype.BasicPolymorphicTypeValidator;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
@@ -8,25 +11,42 @@ import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSeriali
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 @Configuration
-public class RedisConfig
-{
+public class RedisConfig {
+
     @Bean
     public RedisTemplate<String, Object> redisTemplate(
             RedisConnectionFactory connectionFactory) {
 
         RedisTemplate<String, Object> template = new RedisTemplate<>();
-
         template.setConnectionFactory(connectionFactory);
 
-        StringRedisSerializer stringSerializer = new StringRedisSerializer();
-        GenericJackson2JsonRedisSerializer jsonSerializer =
-                new GenericJackson2JsonRedisSerializer();
+        ObjectMapper objectMapper = new ObjectMapper();
 
-        template.setKeySerializer(stringSerializer);
-        template.setHashKeySerializer(stringSerializer);
+        // Hỗ trợ LocalDateTime
+        objectMapper.registerModule(new JavaTimeModule());
 
-        template.setValueSerializer(jsonSerializer);
-        template.setHashValueSerializer(jsonSerializer);
+        // Cho phép deserialize các class của project + collection
+        BasicPolymorphicTypeValidator validator =
+                BasicPolymorphicTypeValidator.builder()
+                        .allowIfSubType("com.soundbook")
+                        .allowIfSubType("java.util")
+                        .build();
+
+        objectMapper.activateDefaultTyping(
+                validator,
+                ObjectMapper.DefaultTyping.NON_FINAL
+        );
+
+        StringRedisSerializer keySerializer =
+                new StringRedisSerializer();
+
+        GenericJackson2JsonRedisSerializer valueSerializer =
+                new GenericJackson2JsonRedisSerializer(objectMapper);
+
+        template.setKeySerializer(keySerializer);
+        template.setHashKeySerializer(keySerializer);
+        template.setValueSerializer(valueSerializer);
+        template.setHashValueSerializer(valueSerializer);
 
         template.afterPropertiesSet();
 

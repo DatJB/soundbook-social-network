@@ -14,6 +14,7 @@ import com.soundbook.entity.enums.Visibility;
 import com.soundbook.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +24,7 @@ import java.text.Normalizer;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -46,53 +48,216 @@ public class FeedService {
     private final FriendRequestRepository friendRequestRepository;
     private final TasteDnaService tasteDnaService;
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private final RedisTemplate<String, Object> redisTemplate;
+
+//    @Transactional(readOnly = true)
+//    public FeedResponse getFeed(String email, String tab, Integer limit) {
+//        User currentUser = userRepository.findByEmail(email).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+//        String normalizedTab = normalizeTab(tab);
+//        int normalizedLimit = normalizeLimit(limit);
+//
+//        Set<Long> followingIds = followRepository.findByIdFollowerId(currentUser.getId()).stream()
+//                .map(follow -> follow.getFollowee().getId())
+//                .collect(Collectors.toCollection(LinkedHashSet::new));
+//
+//        List<MatchUserResponse> matchSuggestions = tasteDnaService.getRecommendedMatches(email, 24);
+//        Map<Long, MatchUserResponse> matchByUserId = matchSuggestions.stream()
+//                .collect(Collectors.toMap(MatchUserResponse::getUserId, Function.identity(), (left, right) -> left, LinkedHashMap::new));
+//
+//        List<Post> candidates = findCandidatePosts(currentUser, normalizedTab, normalizedLimit, followingIds);
+//        if (candidates.isEmpty() && "following".equals(normalizedTab)) {
+//            candidates = findCandidatePosts(currentUser, "discover", normalizedLimit, followingIds);
+//        }
+//
+//        UserTasteDna currentTaste = userTasteDnaRepository.findById(currentUser.getId()).orElse(null);
+//        Map<String, Double> currentMusic = currentTaste == null ? Collections.emptyMap() : readMap(currentTaste.getMusicVectorJson());
+//        Map<String, Double> currentBook = currentTaste == null ? Collections.emptyMap() : readMap(currentTaste.getBookVectorJson());
+//
+//        List<FeedPostResponse> posts = candidates.stream()
+//                .map(post -> buildPostResponse(post, currentUser, currentMusic, currentBook, matchByUserId))
+//                .sorted(feedComparator(normalizedTab))
+//                .limit(normalizedLimit)
+//                .collect(Collectors.toList());
+//
+//        List<MatchUserResponse> filteredSuggestions = matchSuggestions.stream()
+//                .filter(match -> !followingIds.contains(match.getUserId()))
+//                .filter(match -> !match.getUserId().equals(currentUser.getId()))
+//                .filter(match -> !friendshipRepository.existsByIdUserIdAndIdFriendId(currentUser.getId(), match.getUserId()))
+//                .filter(match -> friendRequestRepository.findFirstByRequester_IdAndReceiver_IdAndStatus(currentUser.getId(), match.getUserId(), com.soundbook.entity.enums.FriendRequestStatus.PENDING).isEmpty())
+//                .filter(match -> friendRequestRepository.findFirstByRequester_IdAndReceiver_IdAndStatus(match.getUserId(), currentUser.getId(), com.soundbook.entity.enums.FriendRequestStatus.PENDING).isEmpty())
+//                .limit(6)
+//                .collect(Collectors.toList());
+//
+//        return FeedResponse.builder()
+//                .tab(normalizedTab)
+//                .posts(posts)
+//                .friendSuggestions(filteredSuggestions)
+//                .trending(buildTrending(posts))
+//                .build();
+//    }
 
     @Transactional(readOnly = true)
+    @SuppressWarnings("unchecked")
     public FeedResponse getFeed(String email, String tab, Integer limit) {
-        User currentUser = userRepository.findByEmail(email).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        User currentUser = userRepository.findByEmail(email)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
         String normalizedTab = normalizeTab(tab);
         int normalizedLimit = normalizeLimit(limit);
 
-        Set<Long> followingIds = followRepository.findByIdFollowerId(currentUser.getId()).stream()
+        String cacheKey = "feed:"
+                + currentUser.getId()
+                + ":"
+                + normalizedTab;
+
+        // Check redis
+        Object cached = redisTemplate.opsForValue().get(cacheKey);
+
+        if (cached != null) {
+
+            System.out.println("Redis HIT: " + cacheKey);
+
+            FeedResponse cachedFeed = (FeedResponse) cached;
+
+            List<FeedPostResponse> cachedPosts = cachedFeed.getPosts() == null
+                    ? Collections.emptyList()
+                    : cachedFeed.getPosts()
+                    .stream()
+                    .limit(normalizedLimit)
+                    .collect(Collectors.toList());
+
+            return FeedResponse.builder()
+                    .tab(cachedFeed.getTab())
+                    .posts(cachedPosts)
+                    .friendSuggestions(cachedFeed.getFriendSuggestions())
+                    .trending(buildTrending(cachedPosts))
+                    .build();
+        }
+
+        System.out.println("Redis MISS: " + cacheKey);
+
+        // Redis miss
+        Set<Long> followingIds = followRepository
+                .findByIdFollowerId(currentUser.getId())
+                .stream()
                 .map(follow -> follow.getFollowee().getId())
                 .collect(Collectors.toCollection(LinkedHashSet::new));
 
-        List<MatchUserResponse> matchSuggestions = tasteDnaService.getRecommendedMatches(email, 24);
-        Map<Long, MatchUserResponse> matchByUserId = matchSuggestions.stream()
-                .collect(Collectors.toMap(MatchUserResponse::getUserId, Function.identity(), (left, right) -> left, LinkedHashMap::new));
+        List<MatchUserResponse> matchSuggestions =
+                tasteDnaService.getRecommendedMatches(email, 24);
 
-        List<Post> candidates = findCandidatePosts(currentUser, normalizedTab, normalizedLimit, followingIds);
+        Map<Long, MatchUserResponse> matchByUserId =
+                matchSuggestions.stream()
+                        .collect(Collectors.toMap(
+                                MatchUserResponse::getUserId,
+                                Function.identity(),
+                                (left, right) -> left,
+                                LinkedHashMap::new
+                        ));
+
+        int cacheLimit = MAX_LIMIT;
+
+        List<Post> candidates = findCandidatePosts(
+                currentUser,
+                normalizedTab,
+                cacheLimit,
+                followingIds
+        );
+
         if (candidates.isEmpty() && "following".equals(normalizedTab)) {
-            candidates = findCandidatePosts(currentUser, "discover", normalizedLimit, followingIds);
+            candidates = findCandidatePosts(
+                    currentUser,
+                    "discover",
+                    cacheLimit,
+                    followingIds
+            );
         }
 
-        UserTasteDna currentTaste = userTasteDnaRepository.findById(currentUser.getId()).orElse(null);
-        Map<String, Double> currentMusic = currentTaste == null ? Collections.emptyMap() : readMap(currentTaste.getMusicVectorJson());
-        Map<String, Double> currentBook = currentTaste == null ? Collections.emptyMap() : readMap(currentTaste.getBookVectorJson());
+        UserTasteDna currentTaste =
+                userTasteDnaRepository.findById(currentUser.getId())
+                        .orElse(null);
+
+        Map<String, Double> currentMusic =
+                currentTaste == null
+                        ? Collections.emptyMap()
+                        : readMap(currentTaste.getMusicVectorJson());
+
+        Map<String, Double> currentBook =
+                currentTaste == null
+                        ? Collections.emptyMap()
+                        : readMap(currentTaste.getBookVectorJson());
 
         List<FeedPostResponse> posts = candidates.stream()
-                .map(post -> buildPostResponse(post, currentUser, currentMusic, currentBook, matchByUserId))
+                .map(post -> buildPostResponse(
+                        post,
+                        currentUser,
+                        currentMusic,
+                        currentBook,
+                        matchByUserId
+                ))
                 .sorted(feedComparator(normalizedTab))
-                .limit(normalizedLimit)
+                .limit(cacheLimit)
                 .collect(Collectors.toList());
 
-        List<MatchUserResponse> filteredSuggestions = matchSuggestions.stream()
-                .filter(match -> !followingIds.contains(match.getUserId()))
-                .filter(match -> !match.getUserId().equals(currentUser.getId()))
-                .filter(match -> !friendshipRepository.existsByIdUserIdAndIdFriendId(currentUser.getId(), match.getUserId()))
-                .filter(match -> friendRequestRepository.findFirstByRequester_IdAndReceiver_IdAndStatus(currentUser.getId(), match.getUserId(), com.soundbook.entity.enums.FriendRequestStatus.PENDING).isEmpty())
-                .filter(match -> friendRequestRepository.findFirstByRequester_IdAndReceiver_IdAndStatus(match.getUserId(), currentUser.getId(), com.soundbook.entity.enums.FriendRequestStatus.PENDING).isEmpty())
-                .limit(6)
-                .collect(Collectors.toList());
+        List<MatchUserResponse> filteredSuggestions =
+                matchSuggestions.stream()
+                        .filter(match -> !followingIds.contains(match.getUserId()))
+                        .filter(match -> !match.getUserId().equals(currentUser.getId()))
+                        .filter(match -> !friendshipRepository.existsByIdUserIdAndIdFriendId(
+                                currentUser.getId(),
+                                match.getUserId()
+                        ))
+                        .filter(match -> friendRequestRepository
+                                .findFirstByRequester_IdAndReceiver_IdAndStatus(
+                                        currentUser.getId(),
+                                        match.getUserId(),
+                                        com.soundbook.entity.enums.FriendRequestStatus.PENDING
+                                )
+                                .isEmpty()
+                        )
+                        .filter(match -> friendRequestRepository
+                                .findFirstByRequester_IdAndReceiver_IdAndStatus(
+                                        match.getUserId(),
+                                        currentUser.getId(),
+                                        com.soundbook.entity.enums.FriendRequestStatus.PENDING
+                                )
+                                .isEmpty()
+                        )
+                        .limit(6)
+                        .collect(Collectors.toList());
 
-        return FeedResponse.builder()
+        // Full feed
+        FeedResponse feed = FeedResponse.builder()
                 .tab(normalizedTab)
                 .posts(posts)
                 .friendSuggestions(filteredSuggestions)
                 .trending(buildTrending(posts))
                 .build();
-    }
 
+       // Save to redis - 2 mins
+        redisTemplate.opsForValue().set(
+                cacheKey,
+                feed,
+                2,
+                TimeUnit.MINUTES
+        );
+
+        return FeedResponse.builder()
+                .tab(feed.getTab())
+                .posts(feed.getPosts()
+                        .stream()
+                        .limit(normalizedLimit)
+                        .collect(Collectors.toList()))
+                .friendSuggestions(feed.getFriendSuggestions())
+                .trending(buildTrending(
+                        feed.getPosts()
+                                .stream()
+                                .limit(normalizedLimit)
+                                .collect(Collectors.toList())
+                ))
+                .build();
+    }
 
 
     @Transactional(readOnly = true)
