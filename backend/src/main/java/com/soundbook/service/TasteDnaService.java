@@ -14,6 +14,7 @@ import com.soundbook.entity.enums.DnaBuiltFrom;
 import com.soundbook.entity.enums.PostType;
 import com.soundbook.entity.enums.TargetType;
 import com.soundbook.entity.enums.Visibility;
+import com.soundbook.messaging.RabbitMQProducer;
 import com.soundbook.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -47,6 +48,7 @@ public class TasteDnaService {
     private final ReactionRepository reactionRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final RedisTemplate<String, Object> redisTemplate;
+    private final RabbitMQProducer rabbitMQProducer;
 
     @Transactional(readOnly = true)
     public TasteProfileResponse getMyTaste(String email) {
@@ -130,8 +132,7 @@ public class TasteDnaService {
         onboarding.setCompletedAt(onboarding.getCompletedAt() == null ? now : onboarding.getCompletedAt());
         userOnboardingRepository.save(onboarding);
 
-        // Invalidate recommended matches cache
-        redisTemplate.delete("taste:matches:" + user.getId());
+        rabbitMQProducer.publishTasteUpdated(user.getId());
 
         return buildTasteProfileResponse(user);
     }

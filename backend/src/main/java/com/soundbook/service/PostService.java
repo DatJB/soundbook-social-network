@@ -12,6 +12,8 @@ import com.soundbook.dto.socialcontent.PostReactionRequest;
 import com.soundbook.dto.socialcontent.PostShareRequest;
 import com.soundbook.entity.*;
 import com.soundbook.entity.enums.*;
+import com.soundbook.event.PostChangedEvent;
+import com.soundbook.messaging.RabbitMQProducer;
 import com.soundbook.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -34,6 +36,7 @@ public class PostService {
     private final ReactionRepository reactionRepository;
     private final FeedService feedService;
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private final RabbitMQProducer rabbitMQProducer;
 
     public FeedPostResponse getPostDetail(String email, Long postId) {
         return feedService.getPost(email, postId);
@@ -59,6 +62,13 @@ public class PostService {
 
         Post saved = postRepository.save(post);
         saveMediaIfPresent(saved, request);
+
+        // Publish event cho RabbitMQ
+        rabbitMQProducer.publishPostChanged(
+                saved.getUser().getId(),
+                saved.getId(),
+                PostChangedEvent.Action.CREATED
+        );
 
         return feedService.getPost(email, saved.getId());
     }
@@ -107,6 +117,13 @@ public class PostService {
         postRepository.save(post);
         updateMedia(post, request);
 
+        // Publish event cho RabbitMQ
+        rabbitMQProducer.publishPostChanged(
+                post.getUser().getId(),
+                post.getId(),
+                PostChangedEvent.Action.UPDATED
+        );
+
         return feedService.getPost(email, post.getId());
     }
 
@@ -135,6 +152,13 @@ public class PostService {
 //        reactionRepository.deleteByTargetTypeAndTargetId(TargetType.POST, post.getId());
 //        postMediaRepository.deleteByPost_Id(post.getId());
         post.setStatus(PostStatus.DELETED);
+
+        rabbitMQProducer.publishPostChanged(
+                post.getUser().getId(),
+                post.getId(),
+                PostChangedEvent.Action.DELETED
+        );
+
         postRepository.save(post);
     }
 
