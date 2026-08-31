@@ -25,7 +25,11 @@ export const vi = {
   'header.settings': 'Cài đặt',
   'header.logout': 'Đăng xuất',
   'header.messages': 'Tin nhắn',
+  'header.notifications': 'Thông báo',
   'header.toggle_theme': 'Đổi giao diện',
+  'notification.empty': 'Chưa có thông báo nào',
+  'notification.mark_all_read': 'Đọc tất cả',
+  'notification.load_more': 'Tải thêm',
 
   // Newsfeed
   'feed.foryou': 'Dành cho bạn',

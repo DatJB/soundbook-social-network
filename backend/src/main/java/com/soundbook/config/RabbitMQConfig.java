@@ -25,6 +25,10 @@ public class RabbitMQConfig
     public static final String TASTE_QUEUE = "soundbook.taste.invalidate";
     public static final String TASTE_ROUTING_KEY = "taste.invalidate";
 
+    // Notification
+    public static final String NOTIFICATION_QUEUE = "soundbook.notification";
+    public static final String NOTIFICATION_ROUTING_KEY = "notification";
+
     @Bean
     public DirectExchange soundbookExchange()
     {
@@ -65,6 +69,25 @@ public class RabbitMQConfig
                 .bind(tasteInvalidateQueue)
                 .to(soundbookExchange)
                 .with(TASTE_ROUTING_KEY);
+    }
+
+    @Bean
+    public Queue notificationQueue()
+    {
+        return QueueBuilder
+                .durable(NOTIFICATION_QUEUE)
+                .build();
+    }
+
+    @Bean
+    public Binding notificationBinding(
+            Queue notificationQueue,
+            DirectExchange soundbookExchange)
+    {
+        return BindingBuilder
+                .bind(notificationQueue)
+                .to(soundbookExchange)
+                .with(NOTIFICATION_ROUTING_KEY);
     }
 
     // Serialize Java object to JSON

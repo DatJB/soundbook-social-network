@@ -13,12 +13,14 @@ import com.soundbook.entity.Reaction;
 import com.soundbook.entity.User;
 import com.soundbook.entity.enums.CommentStatus;
 import com.soundbook.entity.enums.LiveEventType;
+import com.soundbook.entity.enums.NotificationType;
 import com.soundbook.entity.enums.TargetType;
 import com.soundbook.repository.CommentRepository;
 import com.soundbook.repository.PostRepository;
 import com.soundbook.repository.ReactionRepository;
 import com.soundbook.repository.UserRepository;
 import com.soundbook.service.InteractionService;
+import com.soundbook.service.NotificationService;
 import com.soundbook.service.ReactionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -26,6 +28,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 @Service
@@ -37,6 +40,7 @@ public class InteractionServiceImpl implements InteractionService
     private final PostRepository postRepository;
     private final CommentRepository commentRepository;
     private final SimpMessagingTemplate messagingTemplate;
+    private final NotificationService notificationService;
 
     @Override
     @Transactional
@@ -83,6 +87,19 @@ public class InteractionServiceImpl implements InteractionService
 
 
         broadcastEvent(postId, LiveEventType.NEW_COMMENT, user.getId(), response);
+
+        // Gửi notification cho chủ bài viết (không tự gửi cho chính mình)
+        if (!Objects.equals(user.getId(), post.getUser().getId())) {
+            notificationService.send(
+                    post.getUser().getId(),
+                    user.getId(),
+                    NotificationType.COMMENT,
+                    TargetType.POST,
+                    post.getId(),
+                    user.getDisplayName() + " đã bình luận về bài viết của bạn"
+            );
+        }
+
         return response;
     }
 
@@ -137,9 +154,21 @@ public class InteractionServiceImpl implements InteractionService
         long totalReactions = reactionRepository.countByTargetIdAndTargetType(postId, TargetType.POST);
         java.util.List<String> types = reactionRepository.findDistinctReactionTypesByTargetIdAndTargetType(postId, TargetType.POST)
                 .stream().map(Enum::name).toList();
-        
-        broadcastEvent(postId, LiveEventType.REACT_POST, user.getId(), 
+
+        broadcastEvent(postId, LiveEventType.REACT_POST, user.getId(),
                 Map.of("total", totalReactions, "types", types));
+
+        // Gửi notification LIKE khi tạo reaction mới (không tự gửi cho chính mình)
+        if (!existingReaction.isPresent() && !Objects.equals(user.getId(), post.getUser().getId())) {
+            notificationService.send(
+                    post.getUser().getId(),
+                    user.getId(),
+                    NotificationType.LIKE,
+                    TargetType.POST,
+                    postId,
+                    user.getDisplayName() + " đã thích bài viết của bạn"
+            );
+        }
     }
 
     @Override

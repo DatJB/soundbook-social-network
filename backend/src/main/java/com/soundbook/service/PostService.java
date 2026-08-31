@@ -34,6 +34,7 @@ public class PostService {
     private final PostMediaRepository postMediaRepository;
     private final CommentRepository commentRepository;
     private final ReactionRepository reactionRepository;
+    private final NotificationService notificationService;
     private final FeedService feedService;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final RabbitMQProducer rabbitMQProducer;
@@ -171,28 +172,101 @@ public class PostService {
         return feedService.getPost(email, postId);
     }
 
+//    @Transactional
+//    public FeedPostResponse react(String email, Long postId, PostReactionRequest request) {
+//        User user = currentUser(email);
+//        Post post = postRepository.findById(postId).orElseThrow(() -> new AppException(ErrorCode.INVALID_REQUEST));
+//        ReactionType newType = request == null ? ReactionType.LIKE : request.getReactionType();
+//        reactionRepository.findByUser_IdAndTargetTypeAndTargetId(user.getId(), TargetType.POST, post.getId()).ifPresentOrElse(existing -> {
+//            if (newType == null || existing.getReactionType() == newType) {
+//                reactionRepository.delete(existing);
+//            } else {
+//                existing.setReactionType(newType);
+//                reactionRepository.save(existing);
+//            }
+//        }, () -> {
+//            if (newType != null) {
+//                reactionRepository.save(Reaction.builder()
+//                        .user(user)
+//                        .targetType(TargetType.POST)
+//                        .targetId(post.getId())
+//                        .reactionType(newType)
+//                        .build());
+//            }
+//        });
+//        return feedService.getPost(email, post.getId());
+//    }
+
     @Transactional
-    public FeedPostResponse react(String email, Long postId, PostReactionRequest request) {
+    public FeedPostResponse react(String email, Long postId, PostReactionRequest request)
+    {
         User user = currentUser(email);
-        Post post = postRepository.findById(postId).orElseThrow(() -> new AppException(ErrorCode.INVALID_REQUEST));
-        ReactionType newType = request == null ? ReactionType.LIKE : request.getReactionType();
-        reactionRepository.findByUser_IdAndTargetTypeAndTargetId(user.getId(), TargetType.POST, post.getId()).ifPresentOrElse(existing -> {
-            if (newType == null || existing.getReactionType() == newType) {
-                reactionRepository.delete(existing);
+
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new AppException(ErrorCode.INVALID_REQUEST));
+
+        ReactionType newType =
+                request == null
+                        ? ReactionType.LIKE
+                        : request.getReactionType();
+
+        boolean created = false;
+
+        var existing = reactionRepository
+                .findByUser_IdAndTargetTypeAndTargetId(
+                        user.getId(),
+                        TargetType.POST,
+                        post.getId()
+                );
+
+        if (existing.isPresent()) {
+
+            Reaction reaction = existing.get();
+
+            if (newType == null || reaction.getReactionType() == newType) {
+
+                // User bỏ reaction
+                reactionRepository.delete(reaction);
+
             } else {
-                existing.setReactionType(newType);
-                reactionRepository.save(existing);
+
+                // Đổi reaction
+                reaction.setReactionType(newType);
+                reactionRepository.save(reaction);
+
+                // Không coi là LIKE mới
+                created = false;
             }
-        }, () -> {
+
+        } else {
+
             if (newType != null) {
-                reactionRepository.save(Reaction.builder()
-                        .user(user)
-                        .targetType(TargetType.POST)
-                        .targetId(post.getId())
-                        .reactionType(newType)
-                        .build());
+
+                reactionRepository.save(
+                        Reaction.builder()
+                                .user(user)
+                                .targetType(TargetType.POST)
+                                .targetId(post.getId())
+                                .reactionType(newType)
+                                .build()
+                );
+
+                created = true;
             }
-        });
+        }
+
+        // Chỉ gửi notification khi thực sự tạo reaction mới
+        if (created && !Objects.equals(user.getId(), post.getUser().getId())) {
+            notificationService.send(
+                    post.getUser().getId(),
+                    user.getId(),
+                    NotificationType.LIKE,
+                    TargetType.POST,
+                    post.getId(),
+                    user.getDisplayName() + " đã thích bài viết của bạn"
+            );
+        }
+
         return feedService.getPost(email, post.getId());
     }
 
@@ -241,6 +315,19 @@ public class PostService {
                 .parent(parent)
                 .content(content)
                 .build());
+
+        // Gửi notification cho chủ bài viết (không tự gửi cho chính mình)
+        if (!Objects.equals(user.getId(), post.getUser().getId())) {
+            notificationService.send(
+                    post.getUser().getId(),
+                    user.getId(),
+                    NotificationType.COMMENT,
+                    TargetType.POST,
+                    post.getId(),
+                    user.getDisplayName() + " đã bình luận về bài viết của bạn"
+            );
+        }
+
         return FeedCommentResponse.builder()
                 .id(saved.getId())
                 .parentId(saved.getParent() != null ? saved.getParent().getId() : null)

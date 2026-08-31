@@ -15,6 +15,7 @@ import {
 import { Link, useNavigate } from 'react-router-dom';
 import { getCurrentUser, logout, resolveHomePath, resolveUrl } from '../../services/auth';
 import { searchApi } from '../../services/search';
+import NotificationDropdown from './NotificationDropdown';
 
 const ResultAvatar = ({ user }) => {
   if (user?.avatarUrl) {
@@ -276,6 +277,7 @@ const Header = ({ unreadMessages = 0 }) => {
                 )}
               </Link>
 
+              <NotificationDropdown />
 
 
               <div ref={profileMenuRef} className="relative">

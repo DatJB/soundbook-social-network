@@ -7,6 +7,8 @@ import com.soundbook.dto.notification.NotificationResponse;
 import com.soundbook.entity.Notification;
 import com.soundbook.entity.User;
 import com.soundbook.entity.UserProfile;
+import com.soundbook.entity.enums.NotificationType;
+import com.soundbook.entity.enums.TargetType;
 import com.soundbook.repository.NotificationRepository;
 import com.soundbook.repository.UserProfileRepository;
 import com.soundbook.repository.UserRepository;
@@ -156,6 +158,35 @@ public class NotificationServiceImpl implements NotificationService {
                 "eventType", "notification.unread-count",
                 "payload", Map.of("unreadCount", unreadCount)
         ));
+    }
+
+    @Override
+    public void send(Long recipientId, Long actorId,
+                     NotificationType type, TargetType targetType,
+                     Long targetId, String content) {
+
+        User recipient = userRepository.findById(recipientId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        User actor = actorId != null
+                ? userRepository.findById(actorId).orElse(null)
+                : null;
+
+        Notification saved = notificationRepository.save(
+                Notification.builder()
+                        .user(recipient)
+                        .actor(actor)
+                        .type(type)
+                        .targetType(targetType)
+                        .targetId(targetId)
+                        .content(content)
+                        .isRead(false)
+                        .build()
+        );
+
+        NotificationResponse response = toNotificationResponse(saved);
+        publishNotificationEvent(recipientId, "notification.new", response);
+        publishUnreadCount(recipientId);
     }
 
     // ==================== HELPER METHODS ====================

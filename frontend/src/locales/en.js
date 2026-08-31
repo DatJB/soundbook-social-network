@@ -25,7 +25,11 @@ export const en = {
   'header.settings': 'Settings',
   'header.logout': 'Logout',
   'header.messages': 'Messages',
+  'header.notifications': 'Notifications',
   'header.toggle_theme': 'Toggle Theme',
+  'notification.empty': 'No notifications yet',
+  'notification.mark_all_read': 'All read',
+  'notification.load_more': 'Load more',
 
   // Newsfeed
   'feed.foryou': 'For You',
