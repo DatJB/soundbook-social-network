@@ -15,12 +15,13 @@ import com.soundbook.entity.enums.CommentStatus;
 import com.soundbook.entity.enums.LiveEventType;
 import com.soundbook.entity.enums.NotificationType;
 import com.soundbook.entity.enums.TargetType;
+import com.soundbook.event.NotificationEvent;
+import com.soundbook.messaging.NotificationProducer;
 import com.soundbook.repository.CommentRepository;
 import com.soundbook.repository.PostRepository;
 import com.soundbook.repository.ReactionRepository;
 import com.soundbook.repository.UserRepository;
 import com.soundbook.service.InteractionService;
-import com.soundbook.service.NotificationService;
 import com.soundbook.service.ReactionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -40,7 +41,7 @@ public class InteractionServiceImpl implements InteractionService
     private final PostRepository postRepository;
     private final CommentRepository commentRepository;
     private final SimpMessagingTemplate messagingTemplate;
-    private final NotificationService notificationService;
+    private final NotificationProducer notificationProducer;
 
     @Override
     @Transactional
@@ -88,15 +89,17 @@ public class InteractionServiceImpl implements InteractionService
 
         broadcastEvent(postId, LiveEventType.NEW_COMMENT, user.getId(), response);
 
-        // Gửi notification cho chủ bài viết (không tự gửi cho chính mình)
+        // Gửi notification cho chủ bài viết qua RabbitMQ (không tự gửi cho chính mình)
         if (!Objects.equals(user.getId(), post.getUser().getId())) {
-            notificationService.send(
-                    post.getUser().getId(),
-                    user.getId(),
-                    NotificationType.COMMENT,
-                    TargetType.POST,
-                    post.getId(),
-                    user.getDisplayName() + " đã bình luận về bài viết của bạn"
+            notificationProducer.publish(
+                    new NotificationEvent(
+                            post.getUser().getId(),
+                            user.getId(),
+                            NotificationType.COMMENT,
+                            TargetType.POST,
+                            post.getId(),
+                            user.getDisplayName() + " đã bình luận về bài viết của bạn"
+                    )
             );
         }
 
@@ -158,15 +161,17 @@ public class InteractionServiceImpl implements InteractionService
         broadcastEvent(postId, LiveEventType.REACT_POST, user.getId(),
                 Map.of("total", totalReactions, "types", types));
 
-        // Gửi notification LIKE khi tạo reaction mới (không tự gửi cho chính mình)
+        // Gửi notification LIKE qua RabbitMQ khi tạo reaction mới (không tự gửi cho chính mình)
         if (!existingReaction.isPresent() && !Objects.equals(user.getId(), post.getUser().getId())) {
-            notificationService.send(
-                    post.getUser().getId(),
-                    user.getId(),
-                    NotificationType.LIKE,
-                    TargetType.POST,
-                    postId,
-                    user.getDisplayName() + " đã thích bài viết của bạn"
+            notificationProducer.publish(
+                    new NotificationEvent(
+                            post.getUser().getId(),
+                            user.getId(),
+                            NotificationType.LIKE,
+                            TargetType.POST,
+                            postId,
+                            user.getDisplayName() + " đã thích bài viết của bạn"
+                    )
             );
         }
     }

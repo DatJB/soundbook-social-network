@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react'
 import { AlertCircle, Grid3X3, List, Save, X, Camera, Search } from 'lucide-react';
 import Cropper from 'react-easy-crop';
 import { useLanguage } from '../context/LanguageContext';
-import { useNavigate, useParams, Link } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams, Link } from 'react-router-dom';
 
 import ProfileHeader from '../components/profile/ProfileHeader';
 import PersonalInfo from '../components/profile/PersonalInfo';
@@ -42,6 +42,8 @@ const extractYouTubeId = (value = '') => {
 const Profile = () => {
   const { t } = useLanguage();
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
+  const targetPostId = searchParams.get('post');
   const navigate = useNavigate();
   const currentUser = getCurrentUser();
   const [profile, setProfile] = useState(null);
@@ -219,6 +221,25 @@ const Profile = () => {
   })), [profile]);
 
   const posts = useMemo(() => (profile?.posts || []).map(normalizePost), [profile]);
+
+  // Auto scroll and highlight post when navigated with ?post=postId
+  useEffect(() => {
+    if (!targetPostId || isLoading || !posts.length) return;
+
+    const timer = setTimeout(() => {
+      const el = document.getElementById(`post-${targetPostId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.add('ring-4', 'ring-primary-500', 'ring-offset-2', 'dark:ring-offset-gray-900', 'shadow-2xl');
+        setTimeout(() => {
+          el.classList.remove('ring-4', 'ring-primary-500', 'ring-offset-2', 'dark:ring-offset-gray-900', 'shadow-2xl');
+        }, 3500);
+      }
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [targetPostId, isLoading, posts]);
+
   const lastUpdate = profile?.updatedAt ? new Date(profile.updatedAt).toLocaleString('vi-VN') : 'Chưa cập nhật';
 
   const replaceProfile = (data, successMessage) => {

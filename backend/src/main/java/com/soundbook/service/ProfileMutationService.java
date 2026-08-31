@@ -10,8 +10,12 @@ import com.soundbook.dto.profile.ProfileUpdateRequest;
 import com.soundbook.entity.*;
 import com.soundbook.entity.enums.BookshelfCode;
 import com.soundbook.entity.enums.CollectionItemType;
+import com.soundbook.entity.enums.NotificationType;
+import com.soundbook.entity.enums.TargetType;
 import com.soundbook.entity.enums.ThemeMode;
 import com.soundbook.entity.enums.Visibility;
+import com.soundbook.event.NotificationEvent;
+import com.soundbook.messaging.NotificationProducer;
 import com.soundbook.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -33,6 +37,7 @@ public class ProfileMutationService {
     private final BookshelfRepository bookshelfRepository;
     private final FollowRepository followRepository;
     private final ProfileService profileService;
+    private final NotificationProducer notificationProducer;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Transactional
@@ -180,6 +185,16 @@ public class ProfileMutationService {
         }
         if (!profileFollowExists(id)) {
             musicFollowSave(current, target, id);
+            notificationProducer.publish(
+                    new NotificationEvent(
+                            target.getId(),
+                            current.getId(),
+                            NotificationType.FOLLOW,
+                            TargetType.USER,
+                            current.getId(),
+                            current.getDisplayName() + " đã bắt đầu theo dõi bạn."
+                    )
+            );
         }
         return profileService.getProfile(email, String.valueOf(targetUserId));
     }

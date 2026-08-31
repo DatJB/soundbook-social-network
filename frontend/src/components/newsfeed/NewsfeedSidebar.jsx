@@ -149,44 +149,6 @@ const NewsfeedSidebar = ({ suggestions = [], trending = [], requests = [], onRef
         </div>
       </div>
 
-      {/* Incoming Requests */}
-      <div className="bg-surface-color rounded-2xl p-5 shadow-sm border border-gray-200 dark:border-gray-800">
-        <h3 className="font-bold text-sm mb-4 uppercase tracking-wider text-text-muted">Lời mời kết bạn</h3>
-        <div className="space-y-4">
-          {requests.length ? requests.map(req => (
-            <div key={req.requestId} className="flex items-center justify-between gap-2 group">
-              <Link to={`/profile/${req.userId}`} className="flex min-w-0 items-center gap-3">
-                <Avatar user={req} />
-                <div className="min-w-0">
-                  <p className="truncate font-semibold text-sm group-hover:underline cursor-pointer">{req.displayName}</p>
-                  <p className="text-xs text-primary-500 font-medium">{Math.round(req.matchScore || 0)}% Match</p>
-                </div>
-              </Link>
-              <div className="flex gap-1">
-                <button 
-                  onClick={() => handleAccept(req.requestId)}
-                  disabled={busyUserId === `req-${req.requestId}`}
-                  className="w-8 h-8 rounded-full bg-green-500/10 flex items-center justify-center text-green-600 hover:bg-green-500 hover:text-white transition-colors disabled:opacity-50"
-                >
-                  <Check size={14} />
-                </button>
-                <button 
-                  onClick={() => handleDecline(req.requestId)}
-                  disabled={busyUserId === `req-${req.requestId}`}
-                  className="w-8 h-8 rounded-full bg-rose-500/10 flex items-center justify-center text-rose-500 hover:bg-rose-500 hover:text-white transition-colors disabled:opacity-50"
-                >
-                  <X size={14} />
-                </button>
-              </div>
-            </div>
-          )) : (
-            <div className="rounded-xl bg-gray-50 p-3 text-xs text-text-muted dark:bg-gray-800/60 text-center">
-              Chưa có lời mời đến.
-            </div>
-          )}
-        </div>
-      </div>
-
       <div className="text-xs text-text-muted flex flex-wrap justify-center gap-x-3 gap-y-2 px-2">
         <span>© 2026 Soundbook</span>
       </div>

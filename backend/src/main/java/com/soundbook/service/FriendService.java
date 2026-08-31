@@ -10,6 +10,8 @@ import com.soundbook.entity.*;
 import com.soundbook.entity.enums.FriendRequestStatus;
 import com.soundbook.entity.enums.NotificationType;
 import com.soundbook.entity.enums.TargetType;
+import com.soundbook.event.NotificationEvent;
+import com.soundbook.messaging.NotificationProducer;
 import com.soundbook.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -35,7 +37,7 @@ public class FriendService {
     private final FriendshipRepository friendshipRepository;
     private final FriendRequestRepository friendRequestRepository;
     private final DmThreadRepository dmThreadRepository;
-    private final NotificationRepository notificationRepository;
+    private final NotificationProducer notificationProducer;
     private final TasteDnaService tasteDnaService;
 
     @Transactional(readOnly = true)
@@ -286,25 +288,29 @@ public class FriendService {
     }
 
     private void notifyFriendRequest(User receiver, User requester, Long requestId) {
-        notificationRepository.save(Notification.builder()
-                .user(receiver)
-                .actor(requester)
-                .type(NotificationType.FRIEND_REQUEST)
-                .targetType(TargetType.USER)
-                .targetId(requestId)
-                .content(requester.getDisplayName() + " đã gửi lời mời kết bạn.")
-                .build());
+        notificationProducer.publish(
+                new NotificationEvent(
+                        receiver.getId(),
+                        requester.getId(),
+                        NotificationType.FRIEND_REQUEST,
+                        TargetType.USER,
+                        requestId,
+                        requester.getDisplayName() + " đã gửi lời mời kết bạn."
+                )
+        );
     }
 
     private void notifyAccepted(User requester, User receiver, Long threadId) {
-        notificationRepository.save(Notification.builder()
-                .user(requester)
-                .actor(receiver)
-                .type(NotificationType.FRIEND_REQUEST)
-                .targetType(TargetType.DM_THREAD)
-                .targetId(threadId)
-                .content(receiver.getDisplayName() + " đã chấp nhận lời mời kết bạn. Hai bạn có thể nhắn tin với nhau.")
-                .build());
+        notificationProducer.publish(
+                new NotificationEvent(
+                        requester.getId(),
+                        receiver.getId(),
+                        NotificationType.FRIEND_REQUEST,
+                        TargetType.DM_THREAD,
+                        threadId,
+                        receiver.getDisplayName() + " đã chấp nhận lời mời kết bạn. Hai bạn có thể nhắn tin với nhau."
+                )
+        );
     }
 
     private FriendActionResponse action(Long userId, String status, Long requestId, Long dmThreadId, boolean canMessage, String message) {

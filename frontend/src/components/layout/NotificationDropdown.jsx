@@ -19,11 +19,12 @@ const TYPE_CONFIG = {
 
 const getNavTarget = (notif, currentUserId) => {
   const { type, targetId, actorUserId } = notif;
+  const uid = currentUserId || getCurrentUser()?.id;
   if (type === 'FOLLOW' || type === 'FRIEND_REQUEST' || type === 'MATCH') return actorUserId ? `/profile/${actorUserId}` : null;
   if (type === 'ROOM_INVITE') return targetId ? `/room/${targetId}` : null;
   // LIKE / COMMENT: đến profile của chủ bài viết (currentUser) với post highlight
-  if ((type === 'LIKE' || type === 'COMMENT') && targetId && currentUserId) {
-    return `/profile/${currentUserId}?post=${targetId}`;
+  if ((type === 'LIKE' || type === 'COMMENT') && targetId && uid) {
+    return `/profile/${uid}?post=${targetId}`;
   }
   return null;
 };
@@ -154,28 +155,44 @@ const NotificationDropdown = () => {
     return () => clearInterval(pollRef.current);
   }, [fetchUnreadCount]);
 
-  /* ── WebSocket: subscribe to real-time notifications ─── */
+  /* ── WebSocket: subscribe to real-time notifications & unread count ─── */
   useEffect(() => {
     if (!userId) return;
-    let unsubscribe;
+    let unsubNotif;
+    let unsubCount;
+
+    // 1. New notification stream
     subscribeTopic(`/topic/notifications/${userId}`, (notif) => {
-      // Prepend new notification to the top of the list
       setNotifs((prev) => {
-        // Avoid duplicates if already present
         if (prev.some((n) => n.id === notif.id)) return prev;
         return [notif, ...prev];
       });
-      // Bump unread badge immediately
-      setUnreadCount((c) => c + 1);
-    }).then((unsub) => { unsubscribe = unsub; }).catch(() => {});
+      // Increment unread count immediately
+      if (!notif.isRead) {
+        setUnreadCount((c) => c + 1);
+      }
+    }).then((unsub) => { unsubNotif = unsub; }).catch(() => {});
 
-    return () => { if (unsubscribe) unsubscribe(); };
+    // 2. Real-time unread count sync stream from backend
+    subscribeTopic(`/topic/users/${userId}/notifications/unread-count`, (data) => {
+      const count = data?.payload?.unreadCount ?? (typeof data === 'number' ? data : null);
+      if (count !== null && count !== undefined) {
+        setUnreadCount(count);
+      }
+    }).then((unsub) => { unsubCount = unsub; }).catch(() => {});
+
+    return () => {
+      if (unsubNotif) unsubNotif();
+      if (unsubCount) unsubCount();
+    };
   }, [userId]);
 
   /* ── Fetch notifications when dropdown opens ─── */
   const fetchNotifs = useCallback(async (nextCursor = null) => {
     if (!userId) return;
     setLoading(true);
+    // Refresh unread count alongside fetching list
+    fetchUnreadCount();
     try {
       const res = await notificationsApi.getNotifications(userId, nextCursor);
       const items = res?.items ?? res ?? [];
@@ -184,7 +201,7 @@ const NotificationDropdown = () => {
       setHasMore(!!res?.nextCursor);
     } catch { /* silent */ }
     finally { setLoading(false); }
-  }, [userId]);
+  }, [userId, fetchUnreadCount]);
 
   useEffect(() => {
     if (open) fetchNotifs();
@@ -318,6 +335,8 @@ const NotificationDropdown = () => {
                   notif={notif}
                   onRead={handleRead}
                   onDelete={handleDelete}
+                  onNavigate={() => setOpen(false)}
+                  currentUserId={userId}
                 />
               ))
             )}

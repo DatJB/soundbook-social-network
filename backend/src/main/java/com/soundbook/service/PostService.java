@@ -12,7 +12,9 @@ import com.soundbook.dto.socialcontent.PostReactionRequest;
 import com.soundbook.dto.socialcontent.PostShareRequest;
 import com.soundbook.entity.*;
 import com.soundbook.entity.enums.*;
+import com.soundbook.event.NotificationEvent;
 import com.soundbook.event.PostChangedEvent;
+import com.soundbook.messaging.NotificationProducer;
 import com.soundbook.messaging.RabbitMQProducer;
 import com.soundbook.repository.*;
 import lombok.RequiredArgsConstructor;
@@ -34,7 +36,7 @@ public class PostService {
     private final PostMediaRepository postMediaRepository;
     private final CommentRepository commentRepository;
     private final ReactionRepository reactionRepository;
-    private final NotificationService notificationService;
+    private final NotificationProducer notificationProducer;
     private final FeedService feedService;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final RabbitMQProducer rabbitMQProducer;
@@ -255,15 +257,17 @@ public class PostService {
             }
         }
 
-        // Chỉ gửi notification khi thực sự tạo reaction mới
+        // Chỉ gửi notification qua RabbitMQ khi thực sự tạo reaction mới
         if (created && !Objects.equals(user.getId(), post.getUser().getId())) {
-            notificationService.send(
-                    post.getUser().getId(),
-                    user.getId(),
-                    NotificationType.LIKE,
-                    TargetType.POST,
-                    post.getId(),
-                    user.getDisplayName() + " đã thích bài viết của bạn"
+            notificationProducer.publish(
+                    new NotificationEvent(
+                            post.getUser().getId(),
+                            user.getId(),
+                            NotificationType.LIKE,
+                            TargetType.POST,
+                            post.getId(),
+                            user.getDisplayName() + " đã thích bài viết của bạn"
+                    )
             );
         }
 
@@ -316,15 +320,17 @@ public class PostService {
                 .content(content)
                 .build());
 
-        // Gửi notification cho chủ bài viết (không tự gửi cho chính mình)
+        // Gửi notification cho chủ bài viết qua RabbitMQ (không tự gửi cho chính mình)
         if (!Objects.equals(user.getId(), post.getUser().getId())) {
-            notificationService.send(
-                    post.getUser().getId(),
-                    user.getId(),
-                    NotificationType.COMMENT,
-                    TargetType.POST,
-                    post.getId(),
-                    user.getDisplayName() + " đã bình luận về bài viết của bạn"
+            notificationProducer.publish(
+                    new NotificationEvent(
+                            post.getUser().getId(),
+                            user.getId(),
+                            NotificationType.COMMENT,
+                            TargetType.POST,
+                            post.getId(),
+                            user.getDisplayName() + " đã bình luận về bài viết của bạn"
+                    )
             );
         }
 
