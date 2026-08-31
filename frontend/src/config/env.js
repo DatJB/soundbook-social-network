@@ -1,5 +1,5 @@
-const DEFAULT_API_BASE_URL = 'https://soundbook-social-network.onrender.com/api/v1';
-const DEFAULT_WS_URL = 'https://soundbook-social-network.onrender.com/ws';
+const DEFAULT_API_BASE_URL = 'http://localhost:8081/api/v1';
+const DEFAULT_WS_URL = 'http://localhost:8081/ws';
 const DEFAULT_GOOGLE_CLIENT_ID = '264640047149-qrrlqpraqqsoj9tijuk55tndve952opu.apps.googleusercontent.com';
 
 const trimTrailingSlash = (value) => String(value || '').replace(/\/+$/, '');

@@ -17,6 +17,7 @@ import com.soundbook.entity.enums.Visibility;
 import com.soundbook.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,6 +26,7 @@ import java.math.RoundingMode;
 import java.text.Normalizer;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @Service
@@ -44,6 +46,7 @@ public class TasteDnaService {
     private final CommentRepository commentRepository;
     private final ReactionRepository reactionRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private final RedisTemplate<String, Object> redisTemplate;
 
     @Transactional(readOnly = true)
     public TasteProfileResponse getMyTaste(String email) {
@@ -127,26 +130,117 @@ public class TasteDnaService {
         onboarding.setCompletedAt(onboarding.getCompletedAt() == null ? now : onboarding.getCompletedAt());
         userOnboardingRepository.save(onboarding);
 
+        // Invalidate recommended matches cache
+        redisTemplate.delete("taste:matches:" + user.getId());
+
         return buildTasteProfileResponse(user);
     }
 
+//    @Transactional(readOnly = true)
+//    public MatchUserResponse getMatchWithUser(String email, Long otherUserId) {
+//        User currentUser = findUserByEmail(email);
+//        User otherUser = userRepository.findById(otherUserId).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+//        return calculateMatch(currentUser, otherUser).orElse(null);
+//    }
+
     @Transactional(readOnly = true)
+    @SuppressWarnings("unchecked")
     public MatchUserResponse getMatchWithUser(String email, Long otherUserId) {
+
         User currentUser = findUserByEmail(email);
-        User otherUser = userRepository.findById(otherUserId).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
-        return calculateMatch(currentUser, otherUser).orElse(null);
+
+        User otherUser = userRepository.findById(otherUserId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        String cacheKey = "taste:match:"
+                + currentUser.getId()
+                + ":"
+                + otherUserId;
+
+        // Check Redis
+        Object cached = redisTemplate.opsForValue().get(cacheKey);
+
+        if (cached != null) {
+            return (MatchUserResponse) cached;
+        }
+
+        // Redis miss
+        MatchUserResponse result = calculateMatch(currentUser, otherUser)
+                .orElse(null);
+
+        if (result != null)
+        {
+            redisTemplate.opsForValue().set(
+                    cacheKey,
+                    result,
+                    15,
+                    TimeUnit.MINUTES
+            );
+        }
+
+        return result;
     }
 
-    @Transactional(readOnly = true)
-    public List<MatchUserResponse> getRecommendedMatches(String email, Integer limit) {
-        User currentUser = findUserByEmail(email);
-        int normalizedLimit = Math.max(1, Math.min(limit == null ? DEFAULT_MATCH_LIMIT : limit, MAX_MATCH_LIMIT));
+//    @Transactional(readOnly = true)
+//    public List<MatchUserResponse> getRecommendedMatches(String email, Integer limit) {
+//        User currentUser = findUserByEmail(email);
+//        int normalizedLimit = Math.max(1, Math.min(limit == null ? DEFAULT_MATCH_LIMIT : limit, MAX_MATCH_LIMIT));
+//
+//        return userRepository.findAll().stream()
+//                .filter(candidate -> !candidate.getId().equals(currentUser.getId()))
+//                .map(candidate -> calculateMatch(currentUser, candidate))
+//                .flatMap(Optional::stream)
+//                .sorted(Comparator.comparingDouble(MatchUserResponse::getFinalMatch).reversed())
+//                .limit(normalizedLimit)
+//                .collect(Collectors.toList());
+//    }
 
-        return userRepository.findAll().stream()
+    @Transactional(readOnly = true)
+    @SuppressWarnings("unchecked")
+    public List<MatchUserResponse> getRecommendedMatches(String email, Integer limit)
+    {
+        User currentUser = findUserByEmail(email);
+
+        int normalizedLimit = Math.max(
+                1,
+                Math.min(
+                        limit == null ? DEFAULT_MATCH_LIMIT : limit,
+                        MAX_MATCH_LIMIT
+                )
+        );
+
+        String cacheKey = "taste:matches:" + currentUser.getId();
+
+        // Check Redis
+        Object cached = redisTemplate.opsForValue().get(cacheKey);
+
+        if (cached != null) {
+            List<MatchUserResponse> cachedMatches =
+                    (List<MatchUserResponse>) cached;
+
+            return cachedMatches.stream()
+                    .limit(normalizedLimit)
+                    .collect(Collectors.toList());
+        }
+
+        // Redis miss
+        List<MatchUserResponse> matches = userRepository.findAll().stream()
                 .filter(candidate -> !candidate.getId().equals(currentUser.getId()))
                 .map(candidate -> calculateMatch(currentUser, candidate))
                 .flatMap(Optional::stream)
                 .sorted(Comparator.comparingDouble(MatchUserResponse::getFinalMatch).reversed())
+                .limit(MAX_MATCH_LIMIT)
+                .collect(Collectors.toList());
+
+        // Save 50 results in 10 minutes
+        redisTemplate.opsForValue().set(
+                cacheKey,
+                matches,
+                10,
+                TimeUnit.MINUTES
+        );
+
+        return matches.stream()
                 .limit(normalizedLimit)
                 .collect(Collectors.toList());
     }
