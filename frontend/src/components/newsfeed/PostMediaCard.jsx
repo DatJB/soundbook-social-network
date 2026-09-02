@@ -79,32 +79,70 @@ const PostMediaCard = ({ post, isPlaying, onTogglePlay }) => {
         })();
 
     return (
-      <div className="flex items-center gap-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl p-3 mb-4">
-        <Cover url={post.media.coverUrl} className="w-16 h-16 rounded-lg flex-shrink-0 shadow-md" fallbackClass={post.media.cover || 'bg-gradient-to-br from-purple-500 to-indigo-600'}>
-          ♪
-        </Cover>
+      <div className={`flex items-center gap-4 rounded-xl p-3 mb-4 transition-all duration-300 ${isPlaying ? 'bg-primary-500/10 dark:bg-primary-500/15 ring-1 ring-primary-500/30' : 'bg-gray-50 dark:bg-gray-800/50'}`}>
+        {/* Cover with spinning disc effect when playing */}
+        <div className={`w-16 h-16 rounded-lg flex-shrink-0 shadow-md overflow-hidden ${isPlaying ? 'ring-2 ring-primary-500 ring-offset-2 ring-offset-white dark:ring-offset-gray-900' : ''}`}>
+          <Cover
+            url={post.media.coverUrl}
+            className={`w-full h-full transition-transform duration-[3000ms] ${isPlaying ? 'scale-110' : 'scale-100'}`}
+            fallbackClass={post.media.cover || 'bg-gradient-to-br from-purple-500 to-indigo-600'}
+          >
+            ♪
+          </Cover>
+        </div>
+
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            {isPlaying && (
-              <div className="flex gap-[3px] items-end flex-shrink-0">
-                <div className="w-[3px] h-3 bg-primary-500 rounded-full animate-[bounce_0.5s_ease-in-out_infinite]" />
-                <div className="w-[3px] h-4 bg-primary-500 rounded-full animate-[bounce_0.5s_ease-in-out_infinite_0.1s]" />
-                <div className="w-[3px] h-2 bg-primary-500 rounded-full animate-[bounce_0.5s_ease-in-out_infinite_0.2s]" />
+          {/* Now playing badge */}
+          {isPlaying && (
+            <div className="flex items-center gap-1.5 mb-1">
+              <div className="flex gap-[2px] items-end h-3">
+                {[0.8, 1, 0.6, 0.9, 0.5].map((h, i) => (
+                  <div
+                    key={i}
+                    className="w-[2px] rounded-full bg-primary-500"
+                    style={{
+                      height: `${h * 100}%`,
+                      animation: `eqCardBar${i} ${0.38 + i * 0.07}s ease-in-out infinite alternate`,
+                    }}
+                  />
+                ))}
               </div>
-            )}
-            <h5 className="font-bold text-sm truncate">{post.media.title}</h5>
-          </div>
+              <span className="text-[10px] font-bold text-primary-500 uppercase tracking-wide">Đang phát</span>
+            </div>
+          )}
+
+          <h5 className="font-bold text-sm truncate">{post.media.title}</h5>
           {artist && <p className="text-xs text-text-muted truncate mt-0.5">{artist}</p>}
+
+          {/* Progress bar */}
           <div className="w-full h-1 bg-gray-200 dark:bg-gray-700 rounded-full mt-2 overflow-hidden">
-            <div className={`h-full bg-primary-500 transition-all duration-300 ${isPlaying ? 'w-full animate-pulse' : 'w-1/3'}`} />
+            <div
+              className={`h-full rounded-full transition-all duration-500 ${isPlaying ? 'bg-gradient-to-r from-primary-500 to-purple-500' : 'bg-primary-400/50 w-1/3'}`}
+              style={isPlaying ? { width: '100%', backgroundSize: '200% 100%', animation: 'gradientSlide 2s linear infinite' } : {}}
+            />
           </div>
         </div>
+
+        {/* Play / Pause button */}
         <button
           onClick={onTogglePlay}
-          className="w-10 h-10 rounded-full bg-primary-500 text-white flex items-center justify-center flex-shrink-0 hover:bg-primary-600 transition-colors shadow-lg shadow-primary-500/20"
+          className={`w-11 h-11 rounded-full text-white flex items-center justify-center flex-shrink-0 transition-all duration-200 shadow-lg hover:scale-110 active:scale-95 ${isPlaying ? 'bg-primary-600 shadow-primary-500/30' : 'bg-primary-500 shadow-primary-500/20 hover:bg-primary-600'}`}
         >
-          {isPlaying ? <Pause size={18} fill="currentColor" /> : <Play size={18} className="ml-1" fill="currentColor" />}
+          {isPlaying ? <Pause size={18} fill="currentColor" /> : <Play size={18} className="ml-0.5" fill="currentColor" />}
         </button>
+
+        {/* Inline keyframes for eq bars */}
+        <style>{`
+          @keyframes eqCardBar0 { from { height: 30% } to { height: 80% } }
+          @keyframes eqCardBar1 { from { height: 50% } to { height: 100% } }
+          @keyframes eqCardBar2 { from { height: 40% } to { height: 60% } }
+          @keyframes eqCardBar3 { from { height: 20% } to { height: 90% } }
+          @keyframes eqCardBar4 { from { height: 60% } to { height: 50% } }
+          @keyframes gradientSlide {
+            0%   { background-position: 0% 50%; }
+            100% { background-position: 200% 50%; }
+          }
+        `}</style>
       </div>
     );
   }

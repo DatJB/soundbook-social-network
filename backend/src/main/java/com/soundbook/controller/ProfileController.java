@@ -11,6 +11,8 @@ import com.soundbook.entity.User;
 import com.soundbook.repository.UserRepository;
 import com.soundbook.service.ProfileMutationService;
 import com.soundbook.service.ProfileService;
+import com.soundbook.service.FeedService;
+import com.soundbook.dto.feed.FeedPostResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -29,10 +31,20 @@ public class ProfileController {
     private final UserRepository userRepository;
     private final ProfileService profileService;
     private final ProfileMutationService profileMutationService;
+    private final FeedService feedService;
 
     @GetMapping("/{userId}")
     public ResponseEntity<ApiResponse<ProfileResponse>> getProfile(Authentication authentication, @PathVariable String userId) {
         return ResponseEntity.ok(ApiResponse.success(profileService.getProfile(authentication.getName(), userId)));
+    }
+
+    @GetMapping("/{userId}/posts")
+    public ResponseEntity<ApiResponse<java.util.List<FeedPostResponse>>> getProfilePosts(
+            Authentication authentication,
+            @PathVariable Long userId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return ResponseEntity.ok(ApiResponse.success(feedService.getProfilePostsPaged(authentication.getName(), userId, page, size)));
     }
 
     @GetMapping("/{userId}/followers")

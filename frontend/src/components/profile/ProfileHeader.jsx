@@ -1,6 +1,5 @@
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
-import YouTube from 'react-youtube';
 import {
   Share2,
   Edit3,
@@ -34,35 +33,19 @@ const ProfileHeader = ({
   onFollow,
   onUnfollow,
   onReport,
+  onPlayerReady,
   socialBusy = false,
 }) => {
-  const status = profileData.friendshipStatus || 'NONE';
-  const showMessage = status === 'FRIENDS' && profileData.canMessage;
-  const playerRef = useRef(null);
-  const pinnedSong = profileData.pinnedSong || {};
-  const canPlayPinnedTrack = Boolean(pinnedSong.videoId && profileData.allowPreviewPlayer !== false);
-
-  useEffect(() => {
-    if (!playerRef.current || !canPlayPinnedTrack) return;
-    try {
-      if (isPlaying) playerRef.current.playVideo?.();
-      else playerRef.current.pauseVideo?.();
-    } catch {
-      // YouTube iframe can reject commands before it is fully ready.
-    }
-  }, [isPlaying, canPlayPinnedTrack, pinnedSong.videoId]);
-
-  const handlePlayerReady = (event) => {
-    playerRef.current = event.target;
-    if (isPlaying) {
-      try { event.target.playVideo?.(); } catch {}
-    }
-  };
-
   const handleTogglePlay = () => {
     if (!canPlayPinnedTrack) return;
     onTogglePlay?.();
   };
+
+  const status = profileData.friendshipStatus || 'NONE';
+  const showMessage = status === 'FRIENDS' && profileData.canMessage;
+  const pinnedSong = profileData.pinnedSong || {};
+  const canPlayPinnedTrack = Boolean(pinnedSong.videoId && profileData.allowPreviewPlayer !== false);
+
 
   return (
     <div className={`w-full h-64 sm:h-80 relative bg-gradient-to-b ${profileData.themeColor}`}>
@@ -70,17 +53,6 @@ const ProfileHeader = ({
         {profileData.coverUrl ? <img src={profileData.coverUrl} alt="cover" className="absolute inset-0 h-full w-full object-cover" /> : null}
         <div className="absolute inset-0 bg-black/20 dark:bg-black/40" />
       </div>
-
-      {canPlayPinnedTrack ? (
-        <div className="absolute opacity-0 pointer-events-none h-0 w-0 overflow-hidden">
-          <YouTube
-            videoId={pinnedSong.videoId}
-            opts={{ playerVars: { autoplay: 0, controls: 0, modestbranding: 1, rel: 0 } }}
-            onReady={handlePlayerReady}
-            onEnd={() => isPlaying && onTogglePlay?.()}
-          />
-        </div>
-      ) : null}
 
       <div className="absolute top-6 right-6 flex gap-3 z-10">
         <button onClick={onShareProfile} className="p-2 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md text-white transition-colors" title={t('profile.share', { defaultValue: 'Share Profile' })}>

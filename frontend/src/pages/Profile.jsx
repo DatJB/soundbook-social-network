@@ -16,6 +16,7 @@ import ModalShell from '../components/common/ModalShell';
 import ConfirmDialog from '../components/common/ConfirmDialog';
 import ToastMessage from '../components/common/ToastMessage';
 import ReportModal from '../components/common/ReportModal';
+import { useMusicPlayer } from '../context/MusicPlayerContext';
 import { getCurrentUser, logout, resolveHomePath, resolveUrl, updateStoredUser } from '../services/auth';
 import { profileApi } from '../services/profile';
 import { searchYouTubeVideos, getYouTubeVideoDetails } from '../services/youtube';
@@ -50,6 +51,7 @@ const Profile = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [isPlaying, setIsPlaying] = useState(false);
+  const { currentTrack, isPlaying: globalIsPlaying, playTrack, stopTrack } = useMusicPlayer();
   const [viewMode, setViewMode] = useState('shelf');
   const [isEditingInfo, setIsEditingInfo] = useState(false);
   const [isEditingAccount, setIsEditingAccount] = useState(false);
@@ -205,6 +207,12 @@ const Profile = () => {
       },
     };
   }, [profile, isGuest, pinnedVideoDetails]);
+
+  // Pinned-track: derive playing state from global context
+  const pinnedTrackId = profileData?.pinnedSong?.videoId
+    ? `pinned-${profile?.userId}`
+    : null;
+  const isPinnedPlaying = Boolean(pinnedTrackId && currentTrack?.id === pinnedTrackId && globalIsPlaying);
 
   const shelves = useMemo(() => (profile?.shelves || []).map(shelf => ({
     ...shelf,
@@ -696,8 +704,22 @@ const Profile = () => {
       <ProfileHeader
         profileData={profileData}
         isGuest={isGuest}
-        isPlaying={isPlaying}
-        onTogglePlay={() => setIsPlaying(!isPlaying)}
+        isPlaying={Boolean(isPinnedPlaying)}
+        onTogglePlay={() => {
+          if (!profileData?.pinnedSong?.videoId) return;
+          const track = {
+            id: pinnedTrackId,
+            _videoId: profileData.pinnedSong.videoId,
+            media: {
+              coverUrl: profileData.pinnedSong.thumbnail || '',
+              title: profileData.pinnedSong.title,
+              artist: profileData.pinnedSong.artist,
+            },
+            user: { name: profileData.name },
+          };
+          playTrack(track);
+        }}
+        onPlayerReady={() => {}} // no-op: global context owns the player
         t={t}
         onAddFriend={handleAddFriend}
         onAcceptFriend={handleAcceptFriend}
@@ -711,6 +733,7 @@ const Profile = () => {
         onReport={() => setIsReportModalOpen(true)}
         socialBusy={socialBusy}
       />
+
 
       <div className="max-w-screen-xl mx-auto w-full px-4 sm:px-6 lg:px-8 space-y-10 pb-20 pt-4">
         <div className="flex justify-between items-end mb-6">
@@ -743,11 +766,9 @@ const Profile = () => {
             />
             <ProfilePosts
               t={t}
-              posts={posts}
+              userId={profile?.userId}
+              initialPosts={posts}
               isGuest={isGuest}
-              onPostCreated={(rawPost) => patchProfilePosts(items => [rawPost, ...items.filter(item => item.id !== rawPost.id)])}
-              onPostDeleted={(postId) => patchProfilePosts(items => items.filter(item => item.id !== postId))}
-              onPostShared={(sharedPost) => patchProfilePosts(items => [sharedPost.original || sharedPost, ...items])}
             />
           </div>
         </div>

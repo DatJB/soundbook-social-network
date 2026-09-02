@@ -98,7 +98,7 @@ public class FeedService {
 
     @Transactional(readOnly = true)
     @SuppressWarnings("unchecked")
-    public FeedResponse getFeed(String email, String tab, Integer limit) {
+    public FeedResponse getFeed(String email, String tab, Integer limit, Integer offset) {
 
         User currentUser = userRepository.findByEmail(email)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
@@ -243,12 +243,15 @@ public class FeedService {
                 TimeUnit.MINUTES
         );
 
+        List<FeedPostResponse> pagedPosts = feed.getPosts()
+                        .stream()
+                        .skip(Math.max(0, offset == null ? 0 : offset))
+                        .limit(normalizedLimit)
+                        .collect(Collectors.toList());
+
         return FeedResponse.builder()
                 .tab(feed.getTab())
-                .posts(feed.getPosts()
-                        .stream()
-                        .limit(normalizedLimit)
-                        .collect(Collectors.toList()))
+                .posts(pagedPosts)
                 .friendSuggestions(feed.getFriendSuggestions())
                 .trending(buildTrending(
                         feed.getPosts()
@@ -256,6 +259,7 @@ public class FeedService {
                                 .limit(normalizedLimit)
                                 .collect(Collectors.toList())
                 ))
+                .hasMore(!pagedPosts.isEmpty() && pagedPosts.size() == normalizedLimit)
                 .build();
     }
 
@@ -275,6 +279,14 @@ public class FeedService {
         int normalizedLimit = normalizeLimit(limit);
         List<Post> posts = postRepository.findByUser_IdOrderByCreatedAtDesc(profileUserId, PageRequest.of(0, normalizedLimit));
         return buildPostResponsesForRequester(currentUser, posts, normalizedLimit);
+    }
+
+    @Transactional(readOnly = true)
+    public List<FeedPostResponse> getProfilePostsPaged(String email, Long profileUserId, int page, int size) {
+        User currentUser = userRepository.findByEmail(email).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        int normalizedSize = Math.max(1, Math.min(size, 50));
+        List<Post> posts = postRepository.findByUser_IdOrderByCreatedAtDesc(profileUserId, PageRequest.of(page, normalizedSize));
+        return buildPostResponsesForRequester(currentUser, posts, normalizedSize);
     }
 
     @Transactional(readOnly = true)

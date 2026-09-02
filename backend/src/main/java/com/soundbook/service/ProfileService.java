@@ -63,7 +63,7 @@ public class ProfileService {
                 .map(friendship -> friendService.buildFriendUser(requester.getEmail(), friendship.getFriend()))
                 .collect(Collectors.toList());
 
-        List<FeedPostResponse> posts = feedService.getProfilePosts(requester.getEmail(), profileUser.getId(), 12);
+        List<FeedPostResponse> posts = feedService.getProfilePosts(requester.getEmail(), profileUser.getId(), 10);
 
         return ProfileResponse.builder()
                 .userId(profileUser.getId())

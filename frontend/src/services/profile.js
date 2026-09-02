@@ -8,6 +8,11 @@ export const profileApi = {
     auth: true,
   })),
 
+  getProfilePosts: async (userId, page = 0, size = 10) => unwrap(await request(
+    `/profiles/${encodeURIComponent(userId)}/posts?page=${page}&size=${size}`,
+    { method: 'GET', auth: true },
+  )),
+
   getFollowers: async (userId) => unwrap(await request(`/profiles/${encodeURIComponent(userId)}/followers`, {
     method: 'GET',
     auth: true,

@@ -14,20 +14,15 @@ export const useLanguage = () => {
 };
 
 export const LanguageProvider = ({ children }) => {
-  const [language, setLanguage] = useState(() => {
-    const savedLanguage = localStorage.getItem('language');
-    if (savedLanguage && (savedLanguage === 'en' || savedLanguage === 'vi')) {
-      return savedLanguage;
-    }
-    return 'vi';
-  });
+  const [language, setLanguage] = useState('vi');
 
   useEffect(() => {
-    localStorage.setItem('language', language);
-  }, [language]);
+    localStorage.setItem('language', 'vi');
+  }, []);
 
   const toggleLanguage = () => {
-    setLanguage(prev => (prev === 'vi' ? 'en' : 'vi'));
+    // Keep locked to 'vi'
+    setLanguage('vi');
   };
 
   const t = (key) => {

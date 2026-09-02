@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate, Outlet, useLocation }
 import { ThemeProvider } from './context/ThemeContext';
 import { LanguageProvider } from './context/LanguageContext';
 import { RoomSessionProvider } from './context/RoomSessionContext';
+import { MusicPlayerProvider } from './context/MusicPlayerContext';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { GOOGLE_CLIENT_ID } from './config/env';
 
@@ -53,6 +54,7 @@ function App() {
           <ToastProvider>
             {/* RoomSessionProvider at root: one STOMP connection, survives navigation */}
             <RoomSessionProvider>
+            <MusicPlayerProvider>
             <Router>
               <Routes>
                 <Route element={<PublicOnlyRoute />}>
@@ -81,6 +83,7 @@ function App() {
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Router>
+            </MusicPlayerProvider>
           </RoomSessionProvider>
         </ToastProvider>
       </LanguageProvider>

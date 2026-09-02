@@ -1,6 +1,22 @@
 import { Outlet } from 'react-router-dom';
 import Header from './Header';
 import MiniPlayer from '../livesync/MiniPlayer';
+import MusicPlayerOverlay from '../newsfeed/MusicPlayerOverlay';
+import { useMusicPlayer } from '../../context/MusicPlayerContext';
+
+const MusicOverlayBridge = () => {
+  const { currentTrack, isPlaying, playerRef, togglePlay, stopTrack } = useMusicPlayer();
+  if (!currentTrack) return null;
+  return (
+    <MusicPlayerOverlay
+      post={currentTrack}
+      playerRef={playerRef}
+      isPlaying={isPlaying}
+      onTogglePlay={togglePlay}
+      onClose={stopTrack}
+    />
+  );
+};
 
 const Layout = () => {
   return (
@@ -10,6 +26,8 @@ const Layout = () => {
         <Outlet />
       </main>
       <MiniPlayer />
+      {/* Global music overlay – persists across navigation */}
+      <MusicOverlayBridge />
     </div>
   );
 };

@@ -266,9 +266,9 @@ const Header = ({ unreadMessages = 0 }) => {
                 {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
               </button>
 
-              <button type="button" onClick={toggleLanguage} className="px-2 py-1 h-9 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 font-semibold text-xs tracking-wider transition-colors border border-gray-200 dark:border-gray-700 uppercase focus-visible:ring-2 focus-visible:ring-primary-500" title="Toggle Language" aria-label="Toggle language">
-                {language}
-              </button>
+              <div className="px-2.5 py-1 h-9 rounded-full text-gray-600 dark:text-gray-300 font-semibold text-xs tracking-wider border border-gray-200 dark:border-gray-700 uppercase flex items-center justify-center select-none" title="Tiếng Việt" aria-label="Ngôn ngữ: Tiếng Việt">
+                VI
+              </div>
 
               <Link to="/chat" className="relative p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 transition-colors focus-visible:ring-2 focus-visible:ring-primary-500" title={t('header.messages')} aria-label={t('header.messages')}>
                 <MessageCircle size={20} />

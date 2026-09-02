@@ -17,4 +17,5 @@ public class FeedResponse {
     private List<FeedPostResponse> posts;
     private List<MatchUserResponse> friendSuggestions;
     private List<FeedTrendingResponse> trending;
+    private Boolean hasMore;
 }
