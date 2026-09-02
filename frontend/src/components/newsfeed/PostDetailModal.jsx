@@ -162,19 +162,18 @@ const PostDetailModal = ({ isOpen, onClose, post, isPlaying, onTogglePlay, onCha
     try {
       setLoadingComments(true);
       const res = await postsApi.getComments(post.id, 0, 100);
-      if (res?.data?.content) {
-        const normalized = res.data.content.map(normalizeComment);
-        const rootCount = normalized.filter(c => !c.parentId).length;
-        setLivePost(prev => ({
-          ...prev,
-          comments: normalized,
-          reactions: {
-            ...(prev.reactions || {}),
-            // Use actual fetched count if larger (real total may include all nested)
-            comments: Math.max(prev.reactions?.comments || 0, res.data.totalElements ?? rootCount)
-          }
-        }));
-      }
+      const rawList = res?.content || res?.data?.content || (Array.isArray(res) ? res : []);
+      const totalCount = res?.totalElements ?? res?.data?.totalElements ?? rawList.length;
+      const normalized = rawList.map(normalizeComment);
+      const rootCount = normalized.filter(c => !c.parentId).length;
+      setLivePost(prev => ({
+        ...prev,
+        comments: normalized,
+        reactions: {
+          ...(prev?.reactions || {}),
+          comments: Math.max(prev?.reactions?.comments || 0, totalCount || rootCount)
+        }
+      }));
     } catch (err) {
       console.error(`Failed to fetch comments for post ${post.id}:`, err);
     } finally {

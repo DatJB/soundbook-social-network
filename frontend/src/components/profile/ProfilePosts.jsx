@@ -32,7 +32,11 @@ const ProfilePosts = ({ t, userId, initialPosts = [], isGuest = false, onPostCre
       const raw = await profileApi.getProfilePosts(userId, pageRef.current, PAGE_SIZE);
       const newPosts = (Array.isArray(raw) ? raw : []).map(normalizePost);
       pageRef.current += 1;
-      setPosts(prev => [...prev, ...newPosts]);
+      setPosts(prev => {
+        const existingIds = new Set(prev.map(p => p.id));
+        const filteredNew = newPosts.filter(p => !existingIds.has(p.id));
+        return [...prev, ...filteredNew];
+      });
       setHasMore(newPosts.length === PAGE_SIZE);
     } catch (err) {
       console.error('Không thể load thêm bài viết:', err);
@@ -116,12 +120,6 @@ const ProfilePosts = ({ t, userId, initialPosts = [], isGuest = false, onPostCre
         {loadingMore && (
           <div className="flex justify-center py-4">
             <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-500/20 border-t-primary-500" />
-          </div>
-        )}
-
-        {!hasMore && posts.length > 0 && (
-          <div className="py-6 text-center text-sm text-text-muted">
-            Bạn đã xem hết bài viết 🎉
           </div>
         )}
       </div>

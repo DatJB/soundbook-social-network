@@ -28,6 +28,7 @@ import java.text.Normalizer;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -46,6 +47,8 @@ public class TasteDnaService {
     private final PostRepository postRepository;
     private final CommentRepository commentRepository;
     private final ReactionRepository reactionRepository;
+    private final FriendshipRepository friendshipRepository;
+    private final FriendRequestRepository friendRequestRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final RedisTemplate<String, Object> redisTemplate;
     private final RabbitMQProducer rabbitMQProducer;
@@ -198,42 +201,115 @@ public class TasteDnaService {
 
     @Transactional(readOnly = true)
     @SuppressWarnings("unchecked")
-    public List<MatchUserResponse> getRecommendedMatches(String email, Integer limit)
-    {
+    public List<MatchUserResponse> getRecommendedMatches(String email, Integer limit) {
+        // 1. Current User (1 query)
         User currentUser = findUserByEmail(email);
-
-        int normalizedLimit = Math.max(
-                1,
-                Math.min(
-                        limit == null ? DEFAULT_MATCH_LIMIT : limit,
-                        MAX_MATCH_LIMIT
-                )
-        );
+        int normalizedLimit = Math.max(1, Math.min(limit == null ? DEFAULT_MATCH_LIMIT : limit, MAX_MATCH_LIMIT));
 
         String cacheKey = "taste:matches:" + currentUser.getId();
 
         // Check Redis
         Object cached = redisTemplate.opsForValue().get(cacheKey);
-
         if (cached != null) {
-            List<MatchUserResponse> cachedMatches =
-                    (List<MatchUserResponse>) cached;
-
+            List<MatchUserResponse> cachedMatches = (List<MatchUserResponse>) cached;
             return cachedMatches.stream()
                     .limit(normalizedLimit)
                     .collect(Collectors.toList());
         }
 
-        // Redis miss
-        List<MatchUserResponse> matches = userRepository.findAll().stream()
-                .filter(candidate -> !candidate.getId().equals(currentUser.getId()))
-                .map(candidate -> calculateMatch(currentUser, candidate))
-                .flatMap(Optional::stream)
+        // 2. Current User Taste DNA (1 query)
+        UserTasteDna currentTaste = userTasteDnaRepository.findById(currentUser.getId()).orElse(null);
+        if (currentTaste == null) {
+            return Collections.emptyList();
+        }
+
+        // 3. Lấy ~50 candidate IDs + TasteDNA (1 query)
+        List<UserTasteDna> candidateTastes = userTasteDnaRepository.findCandidatesForMatching(
+                currentUser.getId(),
+                PageRequest.of(0, 50)
+        );
+        if (candidateTastes.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<Long> candidateIds = candidateTastes.stream().map(UserTasteDna::getUserId).toList();
+
+        // 4. Batch query Profiles + Users (2 queries)
+        Map<Long, User> userMap = userRepository.findAllById(candidateIds).stream()
+                .collect(Collectors.toMap(User::getId, Function.identity(), (a, b) -> a));
+
+        Map<Long, UserProfile> profileMap = userProfileRepository.findAllById(candidateIds).stream()
+                .collect(Collectors.toMap(UserProfile::getUserId, Function.identity(), (a, b) -> a));
+
+        // 5. Friendships WHERE (user_id = :currentUserId AND friend_id IN (...)) (1 query)
+        Set<Long> friendIds = friendshipRepository.findFriendIdsIn(currentUser.getId(), candidateIds);
+
+        // 6. FriendRequests WHERE candidate IN (...) (1 query)
+        List<FriendRequest> requests = friendRequestRepository.findActiveRequestsIn(
+                currentUser.getId(),
+                candidateIds,
+                com.soundbook.entity.enums.FriendRequestStatus.PENDING
+        );
+        Set<Long> pendingUserIds = new HashSet<>();
+        for (FriendRequest req : requests) {
+            if (req.getRequester().getId().equals(currentUser.getId())) {
+                pendingUserIds.add(req.getReceiver().getId());
+            } else {
+                pendingUserIds.add(req.getRequester().getId());
+            }
+        }
+
+        // 7. RAM Processing
+        // ├── parse vector
+        // ├── cosine similarity
+        // ├── weighted music/book score
+        // ├── filter (loại bỏ bạn bè & lời mời đang chờ)
+        // ├── sort
+        // └── top limit
+        Map<String, Double> currentMusic = readMap(currentTaste.getMusicVectorJson());
+        Map<String, Double> currentBook = readMap(currentTaste.getBookVectorJson());
+        double wMusic = currentTaste.getWMusic() == null ? 0.5 : currentTaste.getWMusic().doubleValue();
+        double wBook = currentTaste.getWBook() == null ? 0.5 : currentTaste.getWBook().doubleValue();
+        double cMusic = currentTaste.getMusicConfidence() == null ? 0.5 : currentTaste.getMusicConfidence().doubleValue();
+        double cBook = currentTaste.getBookConfidence() == null ? 0.5 : currentTaste.getBookConfidence().doubleValue();
+        double denominator = (wMusic * cMusic) + (wBook * cBook);
+
+        List<MatchUserResponse> matches = candidateTastes.stream()
+                .filter(otherTaste -> !friendIds.contains(otherTaste.getUserId()) && !pendingUserIds.contains(otherTaste.getUserId()))
+                .map(otherTaste -> {
+                    Long otherId = otherTaste.getUserId();
+                    User otherUser = userMap.get(otherId);
+                    if (otherUser == null) return null;
+
+                    Map<String, Double> otherMusic = readMap(otherTaste.getMusicVectorJson());
+                    Map<String, Double> otherBook = readMap(otherTaste.getBookVectorJson());
+
+                    double simMusic = cosineSimilarity(currentMusic, otherMusic);
+                    double simBook = cosineSimilarity(currentBook, otherBook);
+                    double baseMatch = denominator == 0 ? 0 : 100 * (((wMusic * cMusic * simMusic) + (wBook * cBook * simBook)) / denominator);
+                    double finalMatch = Math.max(0, Math.min(100, baseMatch));
+
+                    UserProfile profile = profileMap.get(otherId);
+
+                    return MatchUserResponse.builder()
+                            .userId(otherId)
+                            .displayName(otherUser.getDisplayName())
+                            .username(profile != null ? profile.getUsername() : null)
+                            .avatarUrl(profile != null ? profile.getAvatarUrl() : null)
+                            .musicSimilarity(round2(simMusic * 100))
+                            .bookSimilarity(round2(simBook * 100))
+                            .baseMatch(round2(baseMatch))
+                            .conflictPenalty(0.0)
+                            .finalMatch(round2(finalMatch))
+                            .sharedFeatures(sharedFeatures(currentMusic, otherMusic, currentBook, otherBook))
+                            .build();
+                })
+                .filter(Objects::nonNull)
                 .sorted(Comparator.comparingDouble(MatchUserResponse::getFinalMatch).reversed())
                 .limit(MAX_MATCH_LIMIT)
                 .collect(Collectors.toList());
 
-        // Save 50 results in 10 minutes
+        // Save to redis (10 mins)
         redisTemplate.opsForValue().set(
                 cacheKey,
                 matches,
@@ -257,15 +333,43 @@ public class TasteDnaService {
         Map<String, Double> musicVector = readMap(tasteDna.getMusicVectorJson());
         Map<String, Double> bookVector = readMap(tasteDna.getBookVectorJson());
 
-        return postRepository.findByVisibilityOrderByCreatedAtDesc(Visibility.PUBLIC, PageRequest.of(0, 50)).stream()
+        List<Post> candidatePosts = postRepository.findByVisibilityOrderByCreatedAtDesc(Visibility.PUBLIC, PageRequest.of(0, 50)).stream()
                 .filter(post -> !post.getUser().getId().equals(user.getId()))
-                .map(post -> buildDiscoverItemFromPost(post, musicVector, bookVector))
+                .toList();
+
+        if (candidatePosts.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<Long> postIds = candidatePosts.stream().map(Post::getId).toList();
+
+        // Batch comment count (1 query)
+        Map<Long, Long> commentCountMap = commentRepository.countCommentsByPostIds(postIds, com.soundbook.entity.enums.CommentStatus.DELETED).stream()
+                .collect(Collectors.toMap(com.soundbook.dto.feed.CommentCountProjection::getPostId, com.soundbook.dto.feed.CommentCountProjection::getTotal, (a, b) -> a));
+
+        // Batch reaction summary (1 query)
+        List<com.soundbook.dto.feed.ReactionSummaryProjection> reactionRows = reactionRepository.findReactionSummary(TargetType.POST, postIds);
+        Map<Long, Long> totalReactionsMap = new HashMap<>();
+        for (com.soundbook.dto.feed.ReactionSummaryProjection row : reactionRows) {
+            totalReactionsMap.merge(row.getTargetId(), row.getTotal(), Long::sum);
+        }
+
+        return candidatePosts.stream()
+                .map(post -> {
+                    long totalReactions = totalReactionsMap.getOrDefault(post.getId(), 0L);
+                    long totalComments = commentCountMap.getOrDefault(post.getId(), 0L);
+                    return buildDiscoverItemFromPost(post, musicVector, bookVector, totalReactions, totalComments);
+                })
                 .sorted(Comparator.comparingDouble(DiscoverItemResponse::getScore).reversed())
                 .limit(12)
                 .collect(Collectors.toList());
     }
 
-    private DiscoverItemResponse buildDiscoverItemFromPost(Post post, Map<String, Double> musicVector, Map<String, Double> bookVector) {
+    private DiscoverItemResponse buildDiscoverItemFromPost(Post post,
+                                                           Map<String, Double> musicVector,
+                                                           Map<String, Double> bookVector,
+                                                           long totalReactions,
+                                                           long totalComments) {
         boolean musicPost = post.getType() == PostType.MUSIC_QUICK_NOTE;
         boolean bookPost = post.getType() == PostType.BOOK_REVIEW
                 || post.getType() == PostType.BOOK_QUOTE_CARD
@@ -286,7 +390,7 @@ public class TasteDnaService {
         }
         score += discoverVectorOverlap(searchable, musicVector, 36);
         score += discoverVectorOverlap(searchable, bookVector, 42);
-        score += Math.min(20, (reactionRepository.countByTargetTypeAndTargetId(TargetType.POST, post.getId()) + commentRepository.countByPostId(post.getId())) * 2.5);
+        score += Math.min(20, (totalReactions + totalComments) * 2.5);
 
         return DiscoverItemResponse.builder()
                 .type(musicPost ? "MUSIC" : "BOOK")
@@ -357,6 +461,78 @@ public class TasteDnaService {
             return value;
         }
         return value.substring(0, maxLength - 1) + "…";
+    }
+
+    public Map<String, Double> parseVector(String json) {
+        return readMap(json);
+    }
+
+    public Double calculateSimilarityScore(
+            Map<String, Double> viewerMusic,
+            Map<String, Double> viewerBook,
+            double wMusic,
+            double wBook,
+            double cMusic,
+            double cBook,
+            UserTasteDna friendTaste
+    ) {
+        if (friendTaste == null || (viewerMusic.isEmpty() && viewerBook.isEmpty())) {
+            return 0.0;
+        }
+        Map<String, Double> friendMusic = readMap(friendTaste.getMusicVectorJson());
+        Map<String, Double> friendBook = readMap(friendTaste.getBookVectorJson());
+
+        double simMusic = cosineSimilarity(viewerMusic, friendMusic);
+        double simBook = cosineSimilarity(viewerBook, friendBook);
+        double denominator = (wMusic * cMusic) + (wBook * cBook);
+        if (denominator == 0) return 0.0;
+        double baseMatch = 100 * (((wMusic * cMusic * simMusic) + (wBook * cBook * simBook)) / denominator);
+        return round2(Math.max(0, Math.min(100, baseMatch)));
+    }
+
+    public List<String> getSharedFeatures(
+            Map<String, Double> viewerMusic,
+            Map<String, Double> viewerBook,
+            UserTasteDna friendTaste
+    ) {
+        if (friendTaste == null || (viewerMusic.isEmpty() && viewerBook.isEmpty())) {
+            return Collections.emptyList();
+        }
+        Map<String, Double> otherMusic = readMap(friendTaste.getMusicVectorJson());
+        Map<String, Double> otherBook = readMap(friendTaste.getBookVectorJson());
+        return sharedFeatures(viewerMusic, otherMusic, viewerBook, otherBook);
+    }
+
+    public Double calculateSimilarityScore(UserTasteDna viewerTaste, UserTasteDna friendTaste) {
+        if (viewerTaste == null || friendTaste == null) {
+            return 0.0;
+        }
+        Map<String, Double> viewerMusic = readMap(viewerTaste.getMusicVectorJson());
+        Map<String, Double> friendMusic = readMap(friendTaste.getMusicVectorJson());
+        Map<String, Double> viewerBook = readMap(viewerTaste.getBookVectorJson());
+        Map<String, Double> friendBook = readMap(friendTaste.getBookVectorJson());
+
+        double simMusic = cosineSimilarity(viewerMusic, friendMusic);
+        double simBook = cosineSimilarity(viewerBook, friendBook);
+        double wMusic = viewerTaste.getWMusic() == null ? 0.5 : viewerTaste.getWMusic().doubleValue();
+        double wBook = viewerTaste.getWBook() == null ? 0.5 : viewerTaste.getWBook().doubleValue();
+        double cMusic = viewerTaste.getMusicConfidence() == null ? 0.5 : viewerTaste.getMusicConfidence().doubleValue();
+        double cBook = viewerTaste.getBookConfidence() == null ? 0.5 : viewerTaste.getBookConfidence().doubleValue();
+        double denominator = (wMusic * cMusic) + (wBook * cBook);
+        if (denominator == 0) return 0.0;
+        double baseMatch = 100 * (((wMusic * cMusic * simMusic) + (wBook * cBook * simBook)) / denominator);
+        return round2(Math.max(0, Math.min(100, baseMatch)));
+    }
+
+    public List<String> getSharedFeatures(UserTasteDna viewerTaste, UserTasteDna friendTaste) {
+        if (viewerTaste == null || friendTaste == null) {
+            return Collections.emptyList();
+        }
+        Map<String, Double> currentMusic = readMap(viewerTaste.getMusicVectorJson());
+        Map<String, Double> otherMusic = readMap(friendTaste.getMusicVectorJson());
+        Map<String, Double> currentBook = readMap(viewerTaste.getBookVectorJson());
+        Map<String, Double> otherBook = readMap(friendTaste.getBookVectorJson());
+        return sharedFeatures(currentMusic, otherMusic, currentBook, otherBook);
     }
 
     private Optional<MatchUserResponse> calculateMatch(User currentUser, User otherUser) {

@@ -34,4 +34,19 @@ public interface ReactionRepository extends JpaRepository<Reaction, Long> {
     java.util.List<ReactionType> findDistinctReactionTypesByTargetIdAndTargetType(@Param("targetId") Long targetId, @Param("targetType") TargetType targetType);
 
     Optional<Reaction> findByUserIdAndTargetIdAndTargetType(Long userId, Long targetId, TargetType targetType);
+
+    @Query("SELECT r.targetId AS targetId, r.reactionType AS reactionType, COUNT(r.id) AS total " +
+           "FROM Reaction r " +
+           "WHERE r.targetType = :targetType AND r.targetId IN :postIds " +
+           "GROUP BY r.targetId, r.reactionType")
+    java.util.List<com.soundbook.dto.feed.ReactionSummaryProjection> findReactionSummary(
+            @Param("targetType") TargetType targetType,
+            @Param("postIds") java.util.Collection<Long> postIds);
+
+    @Query("SELECT r FROM Reaction r " +
+           "WHERE r.user.id = :viewerId AND r.targetType = :targetType AND r.targetId IN :postIds")
+    java.util.List<Reaction> findViewerReactions(
+            @Param("viewerId") Long viewerId,
+            @Param("targetType") TargetType targetType,
+            @Param("postIds") java.util.Collection<Long> postIds);
 }

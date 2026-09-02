@@ -10,5 +10,7 @@ import java.util.Optional;
 public interface PostMediaRepository extends JpaRepository<PostMedia, Long> {
     Optional<PostMedia> findFirstByPost_IdOrderByIdAsc(Long postId);
 
+    java.util.List<PostMedia> findByPost_IdInOrderByPost_IdAscIdAsc(java.util.Collection<Long> postIds);
+
     void deleteByPost_Id(Long postId);
 }

@@ -87,10 +87,14 @@ const Newsfeed = () => {
       });
       const newPosts = data?.posts || [];
       offsetRef.current += newPosts.length;
-      setPayload(prev => ({
-        ...prev,
-        posts: [...prev.posts, ...newPosts],
-      }));
+      setPayload(prev => {
+        const existingIds = new Set((prev.posts || []).map(p => p.id));
+        const filteredNew = newPosts.filter(p => !existingIds.has(p.id));
+        return {
+          ...prev,
+          posts: [...(prev.posts || []), ...filteredNew],
+        };
+      });
       setHasMore(newPosts.length === PAGE_SIZE);
     } catch (err) {
       console.error('Không thể load thêm bài:', err);
@@ -117,7 +121,7 @@ const Newsfeed = () => {
 
     observerRef.current = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting) {
+        if (entries[0].isIntersecting && !isFetchingRef.current) {
           loadMore(activeTab);
         }
       },
@@ -240,9 +244,6 @@ const Newsfeed = () => {
               <div className="flex justify-center py-4">
                 <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-500/20 border-t-primary-500" />
               </div>
-            )}
-            {!hasMore && posts.length > 0 && (
-              <div className="py-6 text-center text-sm text-text-muted">Bạn đã xem hết bài viết 🎉</div>
             )}
           </div>
         )}

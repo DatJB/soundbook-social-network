@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Check, Clock, MessageCircle, Search, UserPlus, X, Flag } from 'lucide-react';
+import { ArrowLeft, Check, Clock, MessageCircle, Search, UserPlus, X, Flag, Loader2 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { useToast } from '../context/ToastContext';
 import { friendsApi } from '../services/friends';
 import { profileApi } from '../services/profile';
+import { tasteApi } from '../services/taste';
 import { getCurrentUser } from '../services/auth';
 import ReportModal from '../components/common/ReportModal';
 
@@ -27,6 +28,7 @@ const FriendsPage = () => {
   const [tab, setTab] = useState('friends');
   const [data, setData] = useState({ friends: [], incomingRequests: [], outgoingRequests: [], suggestions: [] });
   const [loading, setLoading] = useState(true);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const [busyKey, setBusyKey] = useState('');
   const [error, setError] = useState('');
   const [reportTarget, setReportTarget] = useState(null);
@@ -40,16 +42,12 @@ const FriendsPage = () => {
 
       if (isMe) {
         const hub = await friendsApi.getFriendHub();
-        const friends = hub?.friends || [];
-        const friendIds = new Set(friends.map(f => f.userId || f.id));
-        const suggestions = (hub?.suggestions || []).filter(s => !friendIds.has(s.userId || s.id) && (!s.friendshipStatus || s.friendshipStatus === 'NONE'));
-        
-        setData({
-          friends: friends,
+        setData(prev => ({
+          ...prev,
+          friends: hub?.friends || [],
           incomingRequests: hub?.incomingRequests || [],
           outgoingRequests: hub?.outgoingRequests || [],
-          suggestions: suggestions,
-        });
+        }));
       } else {
         const otherFriends = await profileApi.getFriends(id);
         setData({
@@ -64,6 +62,37 @@ const FriendsPage = () => {
       setError(err?.message || 'Không thể tải danh sách bạn bè.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadSuggestions = async () => {
+    if (data.suggestions.length > 0) return;
+    try {
+      setLoadingSuggestions(true);
+      setError('');
+      const matches = await tasteApi.getMatches(20);
+      const suggestions = (matches || []).map(m => ({
+        userId: m.userId,
+        displayName: m.displayName,
+        username: m.username,
+        avatarUrl: m.avatarUrl,
+        matchScore: m.finalMatch,
+        sharedFeatures: m.sharedFeatures,
+        friendshipStatus: 'NONE',
+      }));
+      setData(prev => ({ ...prev, suggestions }));
+    } catch (err) {
+      console.error('Failed to load taste DNA suggestions', err);
+      showToast(err?.message || 'Không thể tải danh sách gợi ý', 'error');
+    } finally {
+      setLoadingSuggestions(false);
+    }
+  };
+
+  const handleTabChange = (value) => {
+    setTab(value);
+    if (value === 'suggestions') {
+      loadSuggestions();
     }
   };
 
@@ -86,6 +115,10 @@ const FriendsPage = () => {
       await action();
       if (successMessage) showToast(successMessage, 'success');
       await load();
+      if (tab === 'suggestions') {
+        setData(prev => ({ ...prev, suggestions: [] }));
+        await loadSuggestions();
+      }
     } catch (err) {
       showToast(err?.message || 'Có lỗi xảy ra', 'error');
     } finally {
@@ -130,7 +163,7 @@ const FriendsPage = () => {
     ['friends', `Bạn bè (${data.friends.length})`],
     ['incoming', `Lời mời đến (${data.incomingRequests.length})`],
     ['outgoing', `Đã gửi (${data.outgoingRequests.length})`],
-    ['suggestions', `Gợi ý (${data.suggestions.length})`],
+    ['suggestions', 'Gợi ý'],
   ] : [
     ['friends', `Bạn bè (${data.friends.length})`],
   ];
@@ -147,7 +180,7 @@ const FriendsPage = () => {
 
       <div className="flex flex-wrap gap-2">
         {tabs.map(([value, label]) => (
-          <button key={value} onClick={() => setTab(value)} className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${tab === value ? 'bg-primary-500 text-white' : 'bg-gray-100 text-text-muted hover:text-text-color dark:bg-gray-800'}`}>{label}</button>
+          <button key={value} onClick={() => handleTabChange(value)} className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${tab === value ? 'bg-primary-500 text-white' : 'bg-gray-100 text-text-muted hover:text-text-color dark:bg-gray-800'}`}>{label}</button>
         ))}
       </div>
 
@@ -159,8 +192,11 @@ const FriendsPage = () => {
       {error ? <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">{error}</div> : null}
 
       <div className="bg-surface-color rounded-2xl shadow-sm border border-gray-200 dark:border-gray-800 divide-y divide-gray-100 dark:divide-gray-800">
-        {loading ? (
-          <p className="text-center text-text-muted text-sm py-12">Đang tải dữ liệu...</p>
+        {loading || (tab === 'suggestions' && loadingSuggestions) ? (
+          <div className="flex flex-col items-center justify-center py-12 gap-2 text-text-muted text-sm">
+            <Loader2 className="w-5 h-5 animate-spin text-primary-500" />
+            <span>Đang tải danh sách {tab === 'suggestions' ? 'gợi ý hợp gu' : 'bạn bè'}...</span>
+          </div>
         ) : filtered.length === 0 ? (
           <p className="text-center text-text-muted text-sm py-12">Không có dữ liệu phù hợp.</p>
         ) : filtered.map(friend => (

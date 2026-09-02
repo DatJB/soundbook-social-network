@@ -162,7 +162,6 @@ export const normalizeTrending = (item = {}) => ({
   title: item.title || 'Bài viết Soundbook',
   subtitle: item.subtitle || 'Soundbook',
   type: item.type === 'audio' ? 'music' : 'book',
-  count: `${item.engagementCount || 0} tương tác`,
 });
 
 export const normalizeShelfItem = (item = {}) => ({

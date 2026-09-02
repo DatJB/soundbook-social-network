@@ -29,13 +29,13 @@ public interface PostRepository extends JpaRepository<Post, Long> {
 //
 //    long countByUser_Id(Long userId);
 
-    @Query("SELECT p FROM Post p WHERE p.visibility = :visibility AND p.status NOT IN ('HIDDEN', 'DELETED') ORDER BY p.createdAt DESC")
+    @Query("SELECT p FROM Post p WHERE p.visibility = :visibility AND p.status NOT IN ('HIDDEN', 'DELETED') ORDER BY p.createdAt DESC, p.id DESC")
     List<Post> findByVisibilityOrderByCreatedAtDesc(Visibility visibility, Pageable pageable);
 
-    @Query("SELECT p FROM Post p WHERE p.user.id IN :userIds AND p.visibility IN :visibilities AND p.status  NOT IN ('HIDDEN', 'DELETED') ORDER BY p.createdAt DESC")
+    @Query("SELECT p FROM Post p WHERE p.user.id IN :userIds AND p.visibility IN :visibilities AND p.status NOT IN ('HIDDEN', 'DELETED') ORDER BY p.createdAt DESC, p.id DESC")
     List<Post> findByUser_IdInAndVisibilityInOrderByCreatedAtDesc(Collection<Long> userIds, Collection<Visibility> visibilities, Pageable pageable);
 
-    @Query("SELECT p FROM Post p WHERE p.user.id = :userId AND p.status  NOT IN ('HIDDEN', 'DELETED') ORDER BY p.createdAt DESC")
+    @Query("SELECT p FROM Post p WHERE p.user.id = :userId AND p.status NOT IN ('HIDDEN', 'DELETED') ORDER BY p.createdAt DESC, p.id DESC")
     List<Post> findByUser_IdOrderByCreatedAtDesc(Long userId, Pageable pageable);
 
     @Query("SELECT COUNT(p) FROM Post p WHERE p.user.id = :userId AND p.status  NOT IN ('HIDDEN', 'DELETED')")

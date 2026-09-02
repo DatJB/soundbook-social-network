@@ -52,4 +52,12 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
     long countByParent_IdAndStatusNot(Long parentId, com.soundbook.entity.enums.CommentStatus status);
 
     List<Comment> findByParent_IdAndStatusNotOrderByCreatedAtAsc(Long commentId, CommentStatus commentStatus);
+
+    @Query("SELECT c.post.id AS postId, COUNT(c.id) AS total " +
+           "FROM Comment c " +
+           "WHERE c.post.id IN :postIds AND c.status <> :deletedStatus " +
+           "GROUP BY c.post.id")
+    java.util.List<com.soundbook.dto.feed.CommentCountProjection> countCommentsByPostIds(
+            @Param("postIds") java.util.Collection<Long> postIds,
+            @Param("deletedStatus") CommentStatus deletedStatus);
 }

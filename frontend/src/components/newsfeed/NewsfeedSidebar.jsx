@@ -138,7 +138,6 @@ const NewsfeedSidebar = ({ suggestions = [], trending = [], requests = [], onRef
                   {item.type === 'music' ? <Music size={12} className="text-purple-500" /> : <Book size={12} className="text-orange-500" />}
                 </div>
                 <p className="truncate text-xs text-text-muted">{item.subtitle}</p>
-                <p className="text-[10px] text-gray-400 mt-0.5">{item.count}</p>
               </div>
             </div>
           )) : (

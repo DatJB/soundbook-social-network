@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -43,40 +44,82 @@ public class FriendService {
     @Transactional(readOnly = true)
     public FriendListResponse getFriendHub(String email) {
         User currentUser = findUserByEmail(email);
-        List<FriendUserResponse> friends = friendshipRepository.findByIdUserIdOrderByCreatedAtDesc(currentUser.getId()).stream()
-                .map(friendship -> toFriendUserResponse(currentUser, friendship.getFriend(), friendship.getCreatedAt()))
-                .collect(Collectors.toList());
+        Long currentUserId = currentUser.getId();
 
-        List<FriendUserResponse> incoming = friendRequestRepository
-                .findByReceiver_IdAndStatusOrderByCreatedAtDesc(currentUser.getId(), FriendRequestStatus.PENDING)
-                .stream()
-                .map(request -> withRequest(toFriendUserResponse(currentUser, request.getRequester(), request.getCreatedAt()), request.getId(), STATUS_INCOMING))
-                .collect(Collectors.toList());
+        // 1. Friendships (1 query)
+        List<Friendship> friendships = friendshipRepository.findByIdUserIdOrderByCreatedAtDesc(currentUserId);
 
-        List<FriendUserResponse> outgoing = friendRequestRepository
-                .findByRequester_IdAndStatusOrderByCreatedAtDesc(currentUser.getId(), FriendRequestStatus.PENDING)
-                .stream()
-                .map(request -> withRequest(toFriendUserResponse(currentUser, request.getReceiver(), request.getCreatedAt()), request.getId(), STATUS_OUTGOING))
-                .collect(Collectors.toList());
+        // 2. Incoming requests (1 query)
+        List<FriendRequest> incomingRequests = friendRequestRepository
+                .findByReceiver_IdAndStatusOrderByCreatedAtDesc(currentUserId, FriendRequestStatus.PENDING);
 
-        Set<Long> excluded = new HashSet<>();
-        excluded.add(currentUser.getId());
-        friends.forEach(item -> excluded.add(item.getUserId()));
-        incoming.forEach(item -> excluded.add(item.getUserId()));
-        outgoing.forEach(item -> excluded.add(item.getUserId()));
+        // 3. Outgoing requests (1 query)
+        List<FriendRequest> outgoingRequests = friendRequestRepository
+                .findByRequester_IdAndStatusOrderByCreatedAtDesc(currentUserId, FriendRequestStatus.PENDING);
 
-        List<FriendUserResponse> suggestions = userRepository.findCandidateUsers(currentUser.getId(), PageRequest.of(0, 100)).stream()
-                .filter(user -> !excluded.contains(user.getId()))
-                .map(user -> toFriendUserResponse(currentUser, user, null))
-                .sorted(Comparator.comparingDouble(FriendUserResponse::getMatchScore).reversed())
-                .limit(12)
-                .collect(Collectors.toList());
+        // 4. Batch UserProfiles (1 query)
+        Set<Long> allUserIds = new HashSet<>();
+        friendships.forEach(f -> allUserIds.add(f.getFriend().getId()));
+        incomingRequests.forEach(r -> allUserIds.add(r.getRequester().getId()));
+        outgoingRequests.forEach(r -> allUserIds.add(r.getReceiver().getId()));
+
+        Map<Long, UserProfile> profileMap = allUserIds.isEmpty() ? Collections.emptyMap() :
+                userProfileRepository.findAllById(allUserIds).stream()
+                        .collect(Collectors.toMap(UserProfile::getUserId, Function.identity(), (a, b) -> a));
+
+        // 5. In-memory mapping (0 database queries)
+        List<FriendUserResponse> friends = friendships.stream().map(f -> {
+            User friend = f.getFriend();
+            UserProfile profile = profileMap.get(friend.getId());
+            return FriendUserResponse.builder()
+                    .userId(friend.getId())
+                    .displayName(friend.getDisplayName())
+                    .username(profile != null ? profile.getUsername() : null)
+                    .avatarUrl(profile != null ? profile.getAvatarUrl() : null)
+                    .bio(profile != null ? profile.getBio() : null)
+                    .friendshipStatus(STATUS_FRIENDS)
+                    .canMessage(true)
+                    .connectedAt(f.getCreatedAt())
+                    .build();
+        }).toList();
+
+        List<FriendUserResponse> incoming = incomingRequests.stream().map(r -> {
+            User requester = r.getRequester();
+            UserProfile profile = profileMap.get(requester.getId());
+            return FriendUserResponse.builder()
+                    .userId(requester.getId())
+                    .displayName(requester.getDisplayName())
+                    .username(profile != null ? profile.getUsername() : null)
+                    .avatarUrl(profile != null ? profile.getAvatarUrl() : null)
+                    .bio(profile != null ? profile.getBio() : null)
+                    .friendshipStatus(STATUS_INCOMING)
+                    .requestId(r.getId())
+                    .canMessage(false)
+                    .connectedAt(r.getCreatedAt())
+                    .build();
+        }).toList();
+
+        List<FriendUserResponse> outgoing = outgoingRequests.stream().map(r -> {
+            User receiver = r.getReceiver();
+            UserProfile profile = profileMap.get(receiver.getId());
+            return FriendUserResponse.builder()
+                    .userId(receiver.getId())
+                    .displayName(receiver.getDisplayName())
+                    .username(profile != null ? profile.getUsername() : null)
+                    .avatarUrl(profile != null ? profile.getAvatarUrl() : null)
+                    .bio(profile != null ? profile.getBio() : null)
+                    .friendshipStatus(STATUS_OUTGOING)
+                    .requestId(r.getId())
+                    .canMessage(false)
+                    .connectedAt(r.getCreatedAt())
+                    .build();
+        }).toList();
 
         return FriendListResponse.builder()
                 .friends(friends)
                 .incomingRequests(incoming)
                 .outgoingRequests(outgoing)
-                .suggestions(suggestions)
+                .suggestions(Collections.emptyList())
                 .build();
     }
 

@@ -44,8 +44,9 @@ const PostComments = ({ postId, postOwnerId, comments = [], enabled = true, onSu
       try {
         setLoadingMore(true);
         const res = await postsApi.getComments(postId);
-        if (res?.data?.content) {
-          setLocalComments(res.data.content.map(normalizeComment));
+        const rawList = res?.content || res?.data?.content || (Array.isArray(res) ? res : []);
+        if (rawList.length) {
+          setLocalComments(rawList.map(normalizeComment));
         }
       } catch (err) {
         console.error('Failed to fetch all comments', err);

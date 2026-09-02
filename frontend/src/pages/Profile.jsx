@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
-import { AlertCircle, Grid3X3, List, Save, X, Camera, Search } from 'lucide-react';
+import { AlertCircle, Grid3X3, List, Save, X, Camera, Search, Loader2 } from 'lucide-react';
 import Cropper from 'react-easy-crop';
 import { useLanguage } from '../context/LanguageContext';
 import { useNavigate, useParams, useSearchParams, Link } from 'react-router-dom';
@@ -688,11 +688,26 @@ const Profile = () => {
   };
 
   if (isLoading) {
-    return <div className="rounded-2xl border border-gray-200 bg-surface-color p-10 text-center dark:border-gray-800">Đang tải trang cá nhân...</div>;
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[55vh] gap-3 text-text-muted">
+        <Loader2 className="w-9 h-9 animate-spin text-primary-500" />
+        <span className="text-sm font-medium">Đang tải trang cá nhân...</span>
+      </div>
+    );
   }
 
   if (error || !profile || !profileData) {
-    return <div className="rounded-2xl border border-red-200 bg-red-50 p-5 text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300"><AlertCircle className="inline mr-2" size={18} />{error || 'Không tìm thấy profile.'}</div>;
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4 text-center px-4">
+        <div className="p-4 rounded-full bg-red-50 dark:bg-red-950/30 text-red-500">
+          <AlertCircle size={32} />
+        </div>
+        <p className="text-base font-semibold text-text-color">{error || 'Không tìm thấy thông tin trang cá nhân.'}</p>
+        <Link to="/" className="px-4 py-2 rounded-xl bg-primary-500 text-white text-sm font-semibold hover:bg-primary-600 transition-colors">
+          Về trang chủ
+        </Link>
+      </div>
+    );
   }
 
   const currentShelfIsMusic = shelfModal.shelfId === 'playlists';
